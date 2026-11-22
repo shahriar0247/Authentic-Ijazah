@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { api } from "@/lib/api";
 import { HadithText } from "@/components/HadithText";
+import { GraphCanvas } from "@/components/GraphCanvas";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,7 @@ export default async function HadithPage({
   const h = data.hadith;
   const en = (data.translations ?? []).find((tr: any) => tr.lang === "en");
   const related = await api<any[]>(`/related/hadiths/${id}?limit=8`).catch(() => []);
+  const dag = await api<any>(`/hadith/${id}/dag`).catch(() => null);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
@@ -49,6 +51,15 @@ export default async function HadithPage({
               {t("hadith.routes")} ({data.routes.length})
             </h3>
             <RoutesList routes={data.routes} id={id} locale={locale} />
+            {!!dag?.nodes?.length && (
+              <div className="mt-4">
+                <h4 className="mb-2 text-sm font-medium text-stone-500">
+                  {t("graph.mergedDag")}
+                </h4>
+                <GraphCanvas nodes={dag.nodes} edges={dag.edges}
+                  locale={locale} direction="UP" height={420} />
+              </div>
+            )}
           </div>
         )}
 

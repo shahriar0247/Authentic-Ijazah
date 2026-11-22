@@ -141,6 +141,34 @@ api.get("/api/v1/hadith/:id/chains", async (req, reply) => {
   return { routes: routes.map((r) => ({ ...r, mentions: byRoute[r.id] ?? [] })) };
 });
 
+/** Merged sanad DAG for a single hadith's routes.
+ *  pos ascends collector -> companion, so narrator(pos+1) narrates to pos. */
+api.get("/api/v1/hadith/:id/dag", async (req) => {
+  const id = Number((req.params as any).id);
+  const edges = await sql`
+    SELECT m2.person_id AS teacher, m.person_id AS student,
+           count(DISTINCT m.route_id) AS routes
+    FROM isnad_mentions m
+    JOIN isnad_mentions m2
+      ON m2.route_id = m.route_id AND m2.pos = m.pos + 1
+    JOIN isnad_routes r ON r.id = m.route_id
+    WHERE r.hadith_id = ${id}
+    GROUP BY 1, 2`;
+  const ids = [...new Set(edges.flatMap((e) => [e.teacher, e.student]))].filter(Boolean);
+  const nodes = ids.length
+    ? await sql`
+        SELECT id, display_name_ar, display_name_en, rank_ar, rank_norm,
+               tabaqa, death_ah_min, is_companion, is_critic
+        FROM persons WHERE id IN ${sql(ids)}`
+    : [];
+  return {
+    nodes,
+    edges: edges.map((e) => ({
+      teacher: e.teacher, student: e.student, routes: Number(e.routes),
+    })),
+  };
+});
+
 // ---------------------------------------------------------------- meaning group / DAG
 
 api.get("/api/v1/groups/:id", async (req, reply) => {
@@ -522,8 +550,8 @@ api.get("/api/v1/timeline", async (req) => {
            birth_ah_min, birth_ah_max, death_ah_min, death_ah_max,
            rank_ar, is_companion, is_critic
     FROM persons
-    WHERE coalesce(death_ah_min, 99999) >= ${start}
-      AND coalesce(birth_ah_min, -99999) <= ${end}
+    WHERE coalesce(death_ah_min, 1500) >= ${start}
+      AND coalesce(birth_ah_min, death_ah_min) <= ${end}
     ORDER BY death_ah_min NULLS LAST
     LIMIT ${lim}`;
 });
