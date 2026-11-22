@@ -20,6 +20,32 @@
 
 ---
 
+## 0. Delivery status (updated 2026-03)
+
+**Live & verified** (ETL `verify` green, 23-check API smoke green, prod build clean):
+
+- Canonical PG17 schema: 28+ tables, 8 migrations, zero FK orphans
+- Corpus: 715,790 hadiths · 577K isnad routes · 4.4M mentions · 178,159 persons
+- Enrichment: Sahih-narrator flags (1,735/1,961), tadlis (83), ikhtilat (161),
+  exact AH years, 47,760 place events (74 gazetteered)
+- Graph: 700K transmission edges (kg adjacency + sanadset), 162K identity
+  matches, leveled-BFS shortest paths, merged-DAGs w/ madār detection
+- Search: tsvector FTS (0.5s) + pg_trgm fallback; 592,745 int8 embeddings
+  on HNSW — related-hadiths ~50ms; meaning-group semantic clustering
+- English: 20,980 verified joins via text-signature + LCP matching
+- Editorial: 10 attributed aqidah/fiqh positions with cited excerpts
+- UI: ar/en localized, isnad DAGs (React Flow+ELK), clickable narrator
+  spans, dossiers w/ badges, PathFinder, map, timeline, books/topics/positions
+
+**Not yet wired / pending:**
+- Riwayat (925K hadith) + Ifta Sunnah corpora — not yet downloaded/merged
+- remaining ~19K hadith-json items (edition differences — no safe join)
+- narrator entity dedup within hadith-kg (same person, multiple rawi rows)
+- PostGIS spatial indexes (places use lat/lng columns; image lacks lib)
+- production deploy (requires plan + approval)
+
+---
+
 ## 1. Research Findings — Data Source Inventory
 
 ### 1.1 Tier 1: Foundational datasets (download once, CC-licensed)
