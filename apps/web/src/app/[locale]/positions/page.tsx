@@ -18,10 +18,11 @@ export default async function PositionsPage({ params }: { params: Promise<{ loca
           <Link key={p.id} href={`/${locale}/positions/${p.id}`} className="card p-5 hover:shadow-md">
             <div className="flex items-center gap-2 text-xs">
               <span className="badge badge-muted">{p.domain}</span>
-              {p.era && <span className="badge badge-muted">{p.era}</span>}
             </div>
-            <h3 className="mt-2 font-medium">{p.title_ar ?? p.title_en}</h3>
-            <p className="mt-1 text-sm text-stone-600">{p.attributions} attributed</p>
+            <h3 className="mt-2 font-medium leading-relaxed">{p.proposition_ar}</h3>
+            <p className="mt-1 text-sm text-stone-600">
+              {p.attributions} {t("positions.stance")}
+            </p>
           </Link>
         ))}
       </div>

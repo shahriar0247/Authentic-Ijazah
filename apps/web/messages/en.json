@@ -14,7 +14,7 @@
     }
   },
   "search": { "results": "results", "hadiths": "Hadith", "persons": "Narrators", "topics": "Topics", "empty": "No results — try another phrase" },
-  "hadith": { "matn": "Matn", "isnad": "Isnad", "routes": "Routes", "translation": "Translation", "grading": "Verdict", "group": "Meaning group", "book": "Book", "clickNarrator": "Click a narrator to open their dossier" },
+  "hadith": { "matn": "Matn", "isnad": "Isnad", "routes": "Routes", "translation": "Translation", "grading": "Verdict", "group": "Meaning group", "book": "Book", "clickNarrator": "Click a narrator to open their dossier", "related": "Similar narrations" },
   "person": { "tabaqa": "Generation", "rank": "Rank", "born": "Born", "died": "Died", "teachers": "Teachers", "students": "Students", "assessments": "Critics on this narrator", "narrated": "Narrated", "hadiths": "hadith", "matches": "Matches in other sources", "network": "Transmission network", "bio": "Biography" },
   "graph": { "madar": "Madar", "routesThrough": "routes", "coverage": "coverage", "legend": "Rank: thiqa / saduq / daif / sahabi" },
   "map": { "title": "Scholarly transmission map", "hint": "Click a city to see who was born, lived, or died there" },

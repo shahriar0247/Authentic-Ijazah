@@ -16,6 +16,7 @@ export default async function HadithPage({
   const data = await api<any>(`/hadith/${id}`);
   const h = data.hadith;
   const en = (data.translations ?? []).find((tr: any) => tr.lang === "en");
+  const related = await api<any[]>(`/related/hadiths/${id}?limit=8`).catch(() => []);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
@@ -48,6 +49,25 @@ export default async function HadithPage({
               {t("hadith.routes")} ({data.routes.length})
             </h3>
             <RoutesList routes={data.routes} id={id} locale={locale} />
+          </div>
+        )}
+
+        {!!related.length && (
+          <div className="card p-6">
+            <h3 className="section-title mb-3">{t("hadith.related")}</h3>
+            <ul className="space-y-2">
+              {related.map((r: any) => (
+                <li key={r.id} className="rounded-lg bg-stone-50/70 p-3">
+                  <div className="mb-1 flex items-center justify-between gap-2 text-xs text-stone-500">
+                    <Link href={`/${locale}/books/${r.work_id ?? ""}`} className="hover:text-madinah">{r.work}</Link>
+                    <span className="badge badge-muted">{Math.round((1 - r.distance) * 100)}%</span>
+                  </div>
+                  <Link href={`/${locale}/hadith/${r.id}`} className="text-sm leading-relaxed text-stone-700 hover:text-madinah">
+                    {r.snippet}…
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
       </article>

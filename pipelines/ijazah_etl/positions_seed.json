@@ -1,0 +1,193 @@
+[
+  {
+    "domain": "aqidah",
+    "proposition_ar": "الإيمان قول باللسان واعتقاد بالقلب وعمل بالجوارح، يزيد بالطاعة وينقص بالمعصية",
+    "proposition_en": "Faith is speech on the tongue, conviction in the heart, and action with the limbs; it increases through obedience and decreases through sin",
+    "attributions": [
+      { "person_id": 2030007, "stance": "affirms", "status": "published",
+        "qualifier_ar": "مذهب الإمام أحمد المنصوص عنه",
+        "excerpt_ar": "الإيمان قول وعمل يزيد وينقص كما قال الله تعالى: ليزدادوا إيماناً مع إيمانهم",
+        "excerpt_source": "عقيدة الإمام أحمد، رواها عنه أصحابه" },
+      { "person_id": 2030021, "stance": "affirms", "status": "published",
+        "qualifier_ar": "من عبارات أهل العلم المشهورة عنه",
+        "excerpt_ar": "سألت إسحاق بن راهويه عن الإيمان فقال: قول باللسان وتصديق بالقلب وعمل بالأركان",
+        "excerpt_source": "شرح أصول اعتقاد أهل السنة للالكائي 4/848" },
+      { "person_id": 3019201, "stance": "affirms", "status": "published",
+        "excerpt_ar": "والإيمان قول وعمل يزيد وينقص كما قال النبي صلى الله عليه وسلم: إيمانكم أضعف إيمان",
+        "excerpt_source": "شرح السنة للبربهاري" },
+      { "person_id": 2080001, "stance": "affirms", "status": "published",
+        "excerpt_ar": "الإيمان هو قول القلب وعمله، وهو التصديق الذي بالقلب الذي يوجب العمل الظاهر، وهو قول باللسان والقلب وعمل بالقلب واللسان والجوارح",
+        "excerpt_source": "مجموع الفتاوى لابن تيمية 7/638" },
+      { "person_id": 2080002, "stance": "affirms", "status": "published",
+        "excerpt_ar": "الإيمان يزيد وينقص بلا خلاف بين أهل السنة",
+        "excerpt_source": "مدارج السالكين لابن القيم" }
+    ]
+  },
+  {
+    "domain": "aqidah",
+    "proposition_ar": "القرآن كلام الله غير مخلوق",
+    "proposition_en": "The Quran is the speech of Allah, not created",
+    "attributions": [
+      { "person_id": 2030007, "stance": "affirms", "status": "published",
+        "qualifier_ar": "صبر عليه في المحنة",
+        "excerpt_ar": "القرآن كلام الله غير مخلوق، ومن زعم أن القرآن مخلوق فهو جهمي كافر",
+        "excerpt_source": "منقولة عن الإمام أحمد في المحنة، السنة لعبد الله بن أحمد" },
+      { "person_id": 2030021, "stance": "affirms", "status": "published",
+        "excerpt_ar": "القرآن كلام الله غير مخلوق",
+        "excerpt_source": "شرح أصول اعتقاد أهل السنة للالكائي" },
+      { "person_id": 3019201, "stance": "affirms", "status": "published",
+        "excerpt_ar": "والقرآن كلام الله ووحيه وتنزيله، لا يقول هو خلق ولا مخلوق",
+        "excerpt_source": "شرح السنة للبربهاري" },
+      { "person_id": 3095261, "stance": "affirms", "status": "published",
+        "qualifier_ar": "وثّق إجماع أهل السنة عليه في كتابه",
+        "excerpt_source": "شرح أصول اعتقاد أهل السنة والجماعة للالكائي" },
+      { "person_id": 2080001, "stance": "affirms", "status": "published",
+        "excerpt_ar": "فالقرآن كلام الله كله، بعضه كلام الله لا مخلوق",
+        "excerpt_source": "مجموع الفتاوى 12/38" }
+    ]
+  },
+  {
+    "domain": "aqidah",
+    "proposition_ar": "المؤمنون يرون ربهم عز وجل يوم القيامة",
+    "proposition_en": "The believers will see their Lord on the Day of Resurrection",
+    "attributions": [
+      { "person_id": 3023895, "stance": "affirms", "status": "published",
+        "excerpt_ar": "والرؤية حق لأهل الجنة بلا كيف",
+        "excerpt_source": "العقيدة الطحاوية" },
+      { "person_id": 3019201, "stance": "affirms", "status": "published",
+        "excerpt_ar": "وأن المؤمنين يرون ربهم تبارك وتعالى يوم القيامة بأبصارهم كما صحت به الأخبار عن رسول الله صلى الله عليه وسلم",
+        "excerpt_source": "شرح السنة للبربهاري" },
+      { "person_id": 2030007, "stance": "affirms", "status": "published",
+        "excerpt_source": "السنة لعبد الله بن أحمد، فصل في الرؤية" },
+      { "person_id": 2080001, "stance": "affirms", "status": "published",
+        "excerpt_ar": "رؤية المؤمنين ربهم يوم القيامة ثابتة بالكتاب والسنة وإجماع سلف الأمة",
+        "excerpt_source": "مجموع الفتاوى" }
+    ]
+  },
+  {
+    "domain": "aqidah",
+    "proposition_ar": "الاستواء على العرش معلوم إثباته، والكيفية مجهولة، والإيمان به واجب",
+    "proposition_en": "Istiwa over the Throne is affirmed without asking how; the modality is unknown, faith in it is obligatory",
+    "attributions": [
+      { "person_id": 6659, "stance": "affirms", "status": "published",
+        "qualifier_ar": "جوابه المشهور في مسألة الاستواء",
+        "excerpt_ar": "الاستواء معلوم والكيف مجهول والإيمان به واجب والسؤال عنه بدعة",
+        "excerpt_source": "رواها عنه أهل العلم، منها الأسماء والصفات للبيهقي وشرح أصول اعتقاد أهل السنة للالكائي" },
+      { "person_id": 3023895, "stance": "affirms", "status": "published",
+        "excerpt_ar": "والاستواء والنزول حق بلا كيف",
+        "excerpt_source": "العقيدة الطحاوية (الاستواء والنزول عند الطحاوي في المتون المنقولة عنه)" },
+      { "person_id": 2030007, "stance": "affirms", "status": "published",
+        "excerpt_ar": "الرحمن على العرش استوى كما أخبر في كتابه",
+        "excerpt_source": "منقول عن الإمام أحمد في الرد على الزنادقة والجهمية" },
+      { "person_id": 2070001, "stance": "qualified", "status": "published",
+        "qualifier_ar": "اختار طريق السلف ونقل طريق الخلف: إمرار الآيات كما جاءت بلا كيف، ويجوز التأويل الذي يحتمله اللفظ عند الحاجة",
+        "excerpt_ar": "وطريق السلامة طريق السلف وهو الإيمان بها كما هي من غير تأويل ولا تعطيل ولا تشبيه، وطريق الخلف التأويل",
+        "excerpt_source": "شرح النووي على صحيح مسلم، كتاب الإيمان" }
+    ]
+  },
+  {
+    "domain": "methodology",
+    "proposition_ar": "الصحابة رضي الله عنهم كلهم عدول، لا يجرح أحد منهم",
+    "proposition_en": "All the Companions are upright (adil); none of them is disparaged",
+    "attributions": [
+      { "person_id": 2030007, "stance": "affirms", "status": "published",
+        "excerpt_ar": "كل أصحاب النبي صلى الله عليه وسلم عدول",
+        "excerpt_source": "منقول عن الإمام أحمد، ذكره ابن عبد البر وغيره" },
+      { "person_id": 3019201, "stance": "affirms", "status": "published",
+        "excerpt_ar": "وأصحاب رسول الله صلى الله عليه وسلم خير هذه الأمة بعد نبيها، فلا يذكر أحد منهم بسوء",
+        "excerpt_source": "شرح السنة للبربهاري" },
+      { "person_id": 2080001, "stance": "affirms", "status": "published",
+        "excerpt_ar": "الصحابة كلهم عدول عند أهل العلم",
+        "excerpt_source": "مجموع الفتاوى ومنهاج السنة" }
+    ]
+  },
+  {
+    "domain": "riwaya",
+    "proposition_ar": "خبر الواحد الثقة حجة في الحلال والحرام والعقيدة إذا استوفى شروط القبول",
+    "proposition_en": "A solitary reliable report is authoritative in law and creed when its conditions of acceptance are met",
+    "attributions": [
+      { "person_id": 6805, "stance": "affirms", "status": "published",
+        "qualifier_ar": "أصله في الرسالة: قبول خبر الواحد في الحلال والحرام",
+        "excerpt_ar": "فوجدنا الناس يمضون على خبر الواحد العدل عن العدل حتى ينتهي إلى النبي صلى الله عليه وسلم في حلال وحرام وفرائض وسنن وأحكام",
+        "excerpt_source": "الرسالة للشافعي" },
+      { "person_id": 2030007, "stance": "affirms", "status": "published",
+        "qualifier_ar": "عمل بمرويات الثقات وإن انفرد بها بعضهم",
+        "excerpt_source": "المسائل والرسائل المنقولة عن الإمام أحمد" },
+      { "person_id": 2011001, "stance": "qualified", "status": "published",
+        "qualifier_ar": "قبوله مشروط عنده بأن لا يكون راوياً يقلد روايته، وأن لا يخالف القياس في بعض الصور",
+        "excerpt_source": "أصول مذهب أبي حنيفة في الحديث (منقولة عن مؤلفات الحنفية)" }
+    ]
+  },
+  {
+    "domain": "fiqh",
+    "proposition_ar": "المسح على الخفين سنة ثابتة للمقيم والمسافر",
+    "proposition_en": "Wiping over leather socks is established sunnah for resident and traveler",
+    "attributions": [
+      { "person_id": 2011001, "stance": "affirms", "status": "published",
+        "qualifier_ar": "رجع إليه بعد أن كان في المنع",
+        "excerpt_ar": "لم يكن في نفسي من المسح على الخفين شيء حتى رأيت غيري يمسح",
+        "excerpt_source": "منقول عن أبي حنيفة في كتب الفقه الحنفي" },
+      { "person_id": 6659, "stance": "affirms", "status": "published",
+        "excerpt_source": "الموطأ، كتاب الطهارة" },
+      { "person_id": 6805, "stance": "affirms", "status": "published",
+        "excerpt_source": "الأم للشافعي، كتاب الطهارة" },
+      { "person_id": 2030007, "stance": "affirms", "status": "published",
+        "excerpt_source": "مسائل الإمام أحمد، باب المسح على الخفين" }
+    ]
+  },
+  {
+    "domain": "methodology",
+    "proposition_ar": "الأخذ بالحديث مقدم على الرأي عند ثبوته عن النبي صلى الله عليه وسلم",
+    "proposition_en": "Acting on an established prophetic hadith takes precedence over opinion",
+    "attributions": [
+      { "person_id": 6659, "stance": "affirms", "status": "published",
+        "excerpt_ar": "قيل لمالك: الرجل يكون له علم بالأثر يجيب في المسألة به؟ فقال: نعم، إنه لا يقال لمن جاء عن رسول الله صلى الله عليه وسلم بأثر: دع هذا وخذ قول فلان",
+        "excerpt_source": "منقول عن مالك في الجامع لأخلاق الراوي للخطيب" },
+      { "person_id": 6805, "stance": "affirms", "status": "published",
+        "excerpt_ar": "أصابت سهم أو رماية، إذا صح الحديث فاضربوا بقولي عرض الحائط",
+        "excerpt_source": "منقول عن الشافعي في كتب تراجمه وآداب الفتوى" },
+      { "person_id": 2030007, "stance": "affirms", "status": "published",
+        "excerpt_ar": "ليس لأحد أن يقول بالرأي إذا جاء أثر عن رسول الله صلى الله عليه وسلم",
+        "excerpt_source": "منقول عن الإمام أحمد في الجامع لعلوم الإمام أحمد" },
+      { "person_id": 2011001, "stance": "qualified", "status": "published",
+        "qualifier_ar": "أصله في الحديث منقوط بالشرط: إذا خالف الحديثُ الكتابَ أو القياسَ قدّم الرأي على خبر الواحد في بعض الصور",
+        "excerpt_ar": "إذا جاء الحديث عن رسول الله صلى الله عليه وسلم فهو على الرأس والعينين",
+        "excerpt_source": "منقول عن أبي حنيفة في إيلاء الأثر بعملية التحرير للحنفية" }
+    ]
+  },
+  {
+    "domain": "aqidah",
+    "proposition_ar": "أسماء الله وصفاته تثبت كما وردت بلا تحريف ولا تعطيل ولا تكييف ولا تمثيل",
+    "proposition_en": "Allah's names and attributes are affirmed as revealed, without distortion, denial, modality, or likening",
+    "attributions": [
+      { "person_id": 3023895, "stance": "affirms", "status": "published",
+        "excerpt_ar": "وهو سبحانه وتعالى منزه عن الحدود والغايات والأركان والأعضاء والأدوات، لا تحويه الجهات الست كسائر المبتدعات",
+        "excerpt_source": "العقيدة الطحاوية" },
+      { "person_id": 3019201, "stance": "affirms", "status": "published",
+        "excerpt_ar": "ومن قال: أرى ربي بين خلق وخلق بلا كيف، فقد كذب وعاند، ومن زعم أن الله يُحد فقد كفر",
+        "excerpt_source": "شرح السنة للبربهاري" },
+      { "person_id": 2080001, "stance": "affirms", "status": "published",
+        "excerpt_ar": "فإن الصفات حقيقتها معلومة وكيفيتها غير معلومة",
+        "excerpt_source": "مجموع الفتاوى، موافقة صحيح المنقول لصريح المعقول" },
+      { "person_id": 2070001, "stance": "qualified", "status": "published",
+        "qualifier_ar": "نص على أنه يجوز التأويل للعالِم إذا ظهرت الحاجة، مع إقرار طريق السلف",
+        "excerpt_ar": "والذي نختاره ونجتهد أنه الواجب على العالِم أن يسلك في كل ما ورد من هذه الأحاديث طريق السلف وهو إمرارها كما جاءت من غير تأويل، ويجوز للعالِم عند الحاجة التأويل",
+        "excerpt_source": "شرح النووي على صحيح مسلم" }
+    ]
+  },
+  {
+    "domain": "methodology",
+    "proposition_ar": "التدليس عيب في السند، ورواية المدلس بالعنعنة لا تقبل حتى يصرح بالسماع",
+    "proposition_en": "Tadlis is a defect in the chain; a mudallis's an'ana narration is not accepted until he explicitly states hearing",
+    "attributions": [
+      { "person_id": 6805, "stance": "affirms", "status": "published",
+        "qualifier_ar": "أول من فصّل في التدليس في الرسالة",
+        "excerpt_ar": "ومن علل الحديث التي يجب على أهل العلم به معرفتها أن لا يقبلوا من مدلس حتى يقول: حدثني أو سمعت",
+        "excerpt_source": "الرسالة للشافعي" },
+      { "person_id": 2030007, "stance": "affirms", "status": "published",
+        "excerpt_source": "منقول عن الإمام أحمد في كتب العلل" },
+      { "person_id": 2080001, "stance": "affirms", "status": "published",
+        "excerpt_source": "مجموع الفتاوى وعلل الحديث" }
+    ]
+  }
+]

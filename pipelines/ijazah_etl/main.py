@@ -72,6 +72,9 @@ SOURCES = [
     ("hadith-app", "Al-Jami' app denormalized corpus (hadith-app.db)", "dataset",
      "CC-BY-4.0", "https://huggingface.co/datasets/emadjumaah/hadith-kg",
      "Enriched rawi metadata: exact AH years, Sahih flags, jarh flags"),
+    ("editorial", "Authentic Ijazah editorial seed (aqidah/fiqh positions)",
+     "editorial", "CC-BY-SA-4.0", "https://github.com/shahriar0247/Authentic-Ijazah",
+     "Curated positions with attributed excerpts from primary works"),
 ]
 
 # hadith-json filename -> substring(s) to locate the hadith-kg work title
@@ -926,31 +929,87 @@ def stage_appdb(cur) -> None:
     log(f"appdb: {n:,} death-place events")
 
 
+def stage_positions(cur) -> None:
+    """Seed attributed aqidah/fiqh positions (editorial content).
+    Each attribution links a person + stance + qualifier; excerpts are
+    stored as source_passages for provenance and linked as evidence."""
+    seed = Path(__file__).parent / "positions_seed.json"
+    if not seed.exists():
+        log("positions_seed.json missing — skipped")
+        return
+    sid = src_id(cur, "editorial")
+    data = json.loads(seed.read_text(encoding="utf-8"))
+
+    cur.execute("""DELETE FROM position_evidence e USING position_attributions a
+                   JOIN positions p ON p.id = a.position_id
+                   WHERE e.attribution_id = a.id""")
+    cur.execute("DELETE FROM position_attributions")
+    cur.execute("DELETE FROM positions")
+    cur.execute("DELETE FROM source_passages WHERE source_id=%s", (sid,))
+
+    np_ = na = ne = 0
+    for pos in data:
+        pid = cur.execute(
+            "INSERT INTO positions (domain, proposition_ar, proposition_en)"
+            " VALUES (%s,%s,%s) RETURNING id",
+            (pos["domain"], pos["proposition_ar"],
+             pos.get("proposition_en"))).fetchone()[0]
+        np_ += 1
+        for a in pos.get("attributions", []):
+            aid = cur.execute(
+                """INSERT INTO position_attributions
+                     (position_id, person_id, stance, qualifier_ar, status)
+                   VALUES (%s,%s,%s,%s,%s) RETURNING id""",
+                (pid, a["person_id"], a.get("stance", "unknown"),
+                 a.get("qualifier_ar"), a.get("status", "draft"))).fetchone()[0]
+            na += 1
+            if a.get("excerpt_ar") or a.get("excerpt_en"):
+                pgid = cur.execute(
+                    """INSERT INTO source_passages
+                         (source_id, locator, text_ar)
+                       VALUES (%s,%s,%s) RETURNING id""",
+                    (sid, a.get("excerpt_source"), a.get("excerpt_ar")),
+                ).fetchone()[0]
+                cur.execute(
+                    """INSERT INTO position_evidence
+                         (attribution_id, passage_id, excerpt_ar, excerpt_en)
+                       VALUES (%s,%s,%s,%s)""",
+                    (aid, pgid, a.get("excerpt_ar"), a.get("excerpt_en")))
+                ne += 1
+    log(f"positions: {np_} positions, {na} attributions, {ne} evidence")
+
+
 def stage_embeddings(cur) -> None:
     """matn-embedding.db -> hadith_occurrences.embedding.
     Vectors are 768 int8-quantized values; stored as float (cosine <=> is
     scale-invariant so dequantization isn't needed for distance)."""
-    f = RAW / "matn-embedding.db"
-    if not f.exists():
-        log("matn-embedding.db missing — skipped")
-        return
-    edb = sqlite3.connect(f)
-    edb.row_factory = sqlite3.Row
     cur.execute("DROP TABLE IF EXISTS _hadith_emb")
     cur.execute("CREATE TEMP TABLE _hadith_emb (hid bigint PRIMARY KEY, v text)")
+    total = 0
+    for fname, tbl in (("matn-embedding.db", "matn_embedding"),
+                       ("athar-embedding.db", "athar_embedding")):
+        f = RAW / fname
+        if not f.exists():
+            log(f"{fname} missing — skipped")
+            continue
+        edb = sqlite3.connect(f)
+        edb.row_factory = sqlite3.Row
 
-    def rows():
-        for r in edb.execute("SELECT hid, vec FROM matn_embedding"):
-            b = r["vec"]
-            if not b or len(b) != 768:
-                continue
-            q = struct.unpack("<768b", b)
-            yield (r["hid"], "[" + ",".join(str(x) for x in q) + "]")
-    n = copy_rows(cur, "_hadith_emb", ["hid", "v"], rows())
-    edb.close()
+        def rows():
+            for r in edb.execute(f"SELECT hid, vec FROM {tbl}"):
+                b = r["vec"]
+                if not b or len(b) != 768:
+                    continue
+                q = struct.unpack("<768b", b)
+                yield (r["hid"], "[" + ",".join(str(x) for x in q) + "]")
+        n = copy_rows(cur, "_hadith_emb", ["hid", "v"], rows())
+        total += n
+        edb.close()
+        log(f"  {tbl}: staged {n:,}")
     cur.execute("""UPDATE hadith_occurrences h SET embedding = e.v::vector
-                   FROM _hadith_emb e WHERE e.hid = h.id""")
-    log(f"hadith embeddings: staged {n:,}, set {cur.rowcount:,}")
+                   FROM _hadith_emb e
+                   WHERE e.hid = h.id AND h.embedding IS NULL""")
+    log(f"hadith embeddings: staged {total:,}, set {cur.rowcount:,}")
 
 
 def stage_finalize(cur) -> None:
@@ -1008,11 +1067,13 @@ STAGES = {
     "translations": stage_translations,
     "kg_geo": stage_kg_geo,
     "appdb": stage_appdb,
+    "positions": stage_positions,
     "embeddings": stage_embeddings,
     "finalize": stage_finalize,
 }
 ORDER = ["sources", "kg", "muslimscholars", "hawramani", "links",
-         "sanadset", "translations", "kg_geo", "appdb", "embeddings", "finalize"]
+         "sanadset", "translations", "kg_geo", "appdb", "positions",
+         "embeddings", "finalize"]
 
 
 def main() -> None:

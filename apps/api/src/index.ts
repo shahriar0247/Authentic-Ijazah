@@ -220,7 +220,7 @@ api.get("/api/v1/related/hadiths/:id", async (req, reply) => {
   if (!a.length || a[0].embedding == null)
     return reply.code(404).send(badRequest("NOT_FOUND", "no embedding"));
   return await sql`
-    SELECT h.id, h.hadith_no, h.hukm, w.title_ar AS work,
+    SELECT h.id, h.hadith_no, h.hukm, h.work_id, w.title_ar AS work,
            left(h.text_ar, 240) AS snippet,
            h.embedding <=> ${a[0].embedding}::vector AS distance
     FROM hadith_occurrences h JOIN works w ON w.id = h.work_id
@@ -522,9 +522,10 @@ api.get("/api/v1/positions/:id", async (req, reply) => {
     FROM position_attributions a JOIN persons pr ON pr.id = a.person_id
     WHERE a.position_id = ${id}`;
   const evidence = await sql`
-    SELECT e.*, pa.person_id
+    SELECT e.*, pa.person_id, sp.locator AS source_locator
     FROM position_evidence e
     JOIN position_attributions pa ON pa.id = e.attribution_id
+    LEFT JOIN source_passages sp ON sp.id = e.passage_id
     WHERE pa.position_id = ${id}`;
   return { position: pos[0], attributions: attrs, evidence };
 });

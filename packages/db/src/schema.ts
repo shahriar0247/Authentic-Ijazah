@@ -350,6 +350,7 @@ export const hadithOccurrences = pgTable(
     index("hadith_work_idx").on(t.workId, t.hadithNo),
     index("hadith_group_idx").on(t.meaningGroupId),
     index("hadith_search_trgm").using("gin", t.searchText.op("gin_trgm_ops")),
+    index("hadith_embedding_hnsw").using("hnsw", t.embedding.op("vector_cosine_ops")),
   ],
 );
 
