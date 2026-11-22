@@ -122,7 +122,33 @@ CITY_COORDS: dict[str, tuple[float, float]] = {
     "iraq": (33.2232, 43.6793), "tahert": (35.37, 1.32),
     "qayrawan": (35.6781, 10.0963), "tunis": (36.8065, 10.1815),
     "marw": (37.6627, 62.1925), "jordan": (31.24, 36.51),
+    "jurjan": (36.84, 54.44), "qazwin": (36.267, 50.0),
+    "raqqa": (35.9594, 39.0079), "syria": (33.5138, 36.2765),
     "uk": (55.0, -2.0),
+}
+
+# english spellings used by muslimscholars/app corpora -> CITY_COORDS key
+EN_CITY: dict[str, str] = {
+    "al-basra": "basra", "basra": "basra", "al-basrah": "basra",
+    "medinah": "medina", "madinah": "medina", "al-madina": "medina",
+    "al-kufa": "kufa", "kufa": "kufa", "kufah": "kufa",
+    "al-baghdad": "baghdad", "baghdad": "baghdad", "bagdad": "baghdad",
+    "al-wasit": "wasit", "wasit": "wasit",
+    "al-hims": "homs", "hims": "homs", "homs": "homs",
+    "syria": "syria", "al-syria": "syria", "al-sham": "sham",
+    "al-damascus": "damascus", "damascus": "damascus",
+    "al-misr": "cairo", "misr": "cairo", "al-qahira": "cairo",
+    "al-ray": "rayy", "al-rayy": "rayy", "rayy": "rayy",
+    "al-merv": "merv", "al-bukhara": "bukhara",
+    "al-samarkand": "samarkand", "al-harawi": "herat",
+    "al-mosul": "mosul", "al-harran": "harran",
+    "al-isfahan": "isfahan", "isfahan": "isfahan",
+    "al-jurjan": "jurjan", "jurjan": "jurjan", "gorgan": "jurjan",
+    "al-qazwin": "qazwin", "qazwin": "qazwin",
+    "al-raqqa": "raqqa", "raqqa": "raqqa",
+    "al-yemen": "yemen", "al-hijaz": "hijaz",
+    "al-khorasan": "khorasan", "al-andalus": "andalusia",
+    "abyssinia": None, "hijaz": "hijaz",
 }
 
 
@@ -809,6 +835,9 @@ AR_CITY: dict[str, str] = {
     "القيروان": "qayrawan", "تونس": "tunis", "جرجان": None,
     "همذان": None, "فارس": None, "شيراز": None, "تستر": None,
     "سجستان": None, "طبرستان": None, "الجزيره": "jordan",
+    "اصبهان": "isfahan", "قزوين": "qazwin", "هراه": "herat",
+    "الرقه": "raqqa", "بخاري": "bukhara", "الرى": "rayy",
+    "اصطخر": None, "جيرون": None, "رامهرمز": None,
 }
 
 
@@ -819,7 +848,7 @@ def _place_for(cur, key: str, sid: int) -> int | None:
         (key, key)).fetchone()
     if row:
         return row[0]
-    en = AR_CITY.get(key)
+    en = AR_CITY.get(key) or EN_CITY.get(key.lower())
     coords = CITY_COORDS.get(en) if en else None
     cur.execute(
         "INSERT INTO places (name_ar, name_en, lat, lng, precision, source_id)"

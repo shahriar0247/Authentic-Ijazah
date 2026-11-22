@@ -41,15 +41,27 @@ api.get("/api/v1/search", async (req, reply) => {
   const out: Record<string, unknown> = { q, normalized: qn };
 
   if (kind === "all" || kind === "hadith") {
+    // full-text on normalized text (word match) — trigram similarity is
+    // meaningless for a 4-char query vs a full-document column.
     out.hadiths = await sql`
-      SELECT h.id, h.hadith_no, w.title_ar AS work, h.hukm,
+      SELECT h.id, h.hadith_no, h.work_id, w.title_ar AS work, h.hukm,
              left(h.text_ar, 280) AS snippet,
-             similarity(h.search_text, ${qn}) AS score
-      FROM hadith_occurrences h JOIN works w ON w.id = h.work_id
-      WHERE h.search_text ILIKE ${"%" + qn + "%"}
-         OR h.search_text % ${qn}
+             ts_rank(to_tsvector('simple', coalesce(h.search_text,'')), q)
+               AS score
+      FROM hadith_occurrences h JOIN works w ON w.id = h.work_id,
+           plainto_tsquery('simple', ${qn}) q
+      WHERE to_tsvector('simple', coalesce(h.search_text,'')) @@ q
       ORDER BY score DESC
       LIMIT ${lim} OFFSET ${cursor}`;
+    if (!(out.hadiths as unknown[]).length) {
+      // phrase fallback: no lexeme match — substring trigram scan (slow path)
+      out.hadiths = await sql`
+        SELECT h.id, h.hadith_no, h.work_id, w.title_ar AS work, h.hukm,
+               left(h.text_ar, 280) AS snippet, 1.0 AS score
+        FROM hadith_occurrences h JOIN works w ON w.id = h.work_id
+        WHERE h.search_text ILIKE ${"%" + qn + "%"}
+        LIMIT ${lim} OFFSET ${cursor}`;
+    }
   }
   if (kind === "all" || kind === "person") {
     out.persons = await sql`
@@ -60,7 +72,7 @@ api.get("/api/v1/search", async (req, reply) => {
       WHERE p.search_text ILIKE ${"%" + qn + "%"} OR p.search_text % ${qn}
          OR EXISTS (SELECT 1 FROM person_names n
                     WHERE n.person_id = p.id AND n.value % ${qn})
-      ORDER BY score DESC
+      ORDER BY score DESC, (p.id < 3000000) DESC, p.id
       LIMIT ${lim} OFFSET ${cursor}`;
   }
   if (kind === "all" || kind === "topic") {
@@ -166,8 +178,19 @@ api.get("/api/v1/groups/:id", async (req, reply) => {
     WHERE h.meaning_group_id = ${id}
     GROUP BY m.person_id`;
 
+  // cap at the most route-central narrators — full DAGs can hit 500+ nodes
+  const maxNodes = Math.min(400, Number((req.query as any).nodes ?? 150) || 150);
+  const covById = new Map(coverage.map((c) => [c.person_id, Number(c.routes)]));
+  const centrality = (pid: number) =>
+    (covById.get(pid) ?? 0) +
+    edges.reduce((s, e) =>
+      s + (e.teacher === pid || e.student === pid ? Number(e.routes) : 0), 0);
   const ids = [...new Set([...edges.flatMap((e) => [e.teacher, e.student]),
-                           ...coverage.map((c) => c.person_id)])].filter(Boolean);
+                           ...coverage.map((c) => c.person_id)])]
+    .filter(Boolean)
+    .sort((a, b) => centrality(b) - centrality(a))
+    .slice(0, maxNodes);
+  const idSet = new Set(ids);
   const nodes = ids.length
     ? await sql`
         SELECT id, display_name_ar, display_name_en, rank_ar, rank_norm,
@@ -204,9 +227,11 @@ api.get("/api/v1/groups/:id", async (req, reply) => {
     hadiths,
     dag: {
       nodes,
-      edges: edges.map((e) => ({
-        teacher: e.teacher, student: e.student, routes: Number(e.routes),
-      })),
+      edges: edges
+        .filter((e) => idSet.has(e.teacher) && idSet.has(e.student))
+        .map((e) => ({
+          teacher: e.teacher, student: e.student, routes: Number(e.routes),
+        })),
       totalRoutes,
       madar,
     },
