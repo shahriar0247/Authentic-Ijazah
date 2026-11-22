@@ -17,6 +17,10 @@ const limit = (v: unknown, dflt = 20, max = 50) => {
   return Math.min(Math.floor(n), max);
 };
 
+/** Route :id — NaN/non-numeric becomes -1 (no row exists -> 404/empty). */
+const idParam = (req: { params: unknown }) =>
+  Number((req.params as Record<string, string>).id) || -1;
+
 // ---------------------------------------------------------------- stats/health
 
 api.get("/api/v1/health", async () => {
@@ -98,7 +102,7 @@ api.get("/api/v1/search", async (req, reply) => {
 // ---------------------------------------------------------------- hadith
 
 api.get("/api/v1/hadith/:id", async (req, reply) => {
-  const id = Number((req.params as any).id);
+  const id = idParam(req);
   const rows = await sql`
     SELECT h.*, w.title_ar AS work_title, w.author_name_ar AS work_author
     FROM hadith_occurrences h JOIN works w ON w.id = h.work_id
@@ -121,7 +125,7 @@ api.get("/api/v1/hadith/:id", async (req, reply) => {
 });
 
 api.get("/api/v1/hadith/:id/chains", async (req, reply) => {
-  const id = Number((req.params as any).id);
+  const id = idParam(req);
   const routes = await sql`
     SELECT id, length, max_rank, hukm FROM isnad_routes
     WHERE hadith_id = ${id} ORDER BY id LIMIT 200`;
@@ -144,7 +148,7 @@ api.get("/api/v1/hadith/:id/chains", async (req, reply) => {
 /** Merged sanad DAG for a single hadith's routes.
  *  pos ascends collector -> companion, so narrator(pos+1) narrates to pos. */
 api.get("/api/v1/hadith/:id/dag", async (req) => {
-  const id = Number((req.params as any).id);
+  const id = idParam(req);
   const edges = await sql`
     SELECT m2.person_id AS teacher, m.person_id AS student,
            count(DISTINCT m.route_id) AS routes
@@ -172,7 +176,7 @@ api.get("/api/v1/hadith/:id/dag", async (req) => {
 // ---------------------------------------------------------------- meaning group / DAG
 
 api.get("/api/v1/groups/:id", async (req, reply) => {
-  const id = Number((req.params as any).id);
+  const id = idParam(req);
   const g = await sql`SELECT * FROM meaning_groups WHERE id = ${id}`;
   if (!g.length)
     return reply.code(404).send(badRequest("NOT_FOUND", "group not found"));
@@ -267,7 +271,7 @@ api.get("/api/v1/groups/:id", async (req, reply) => {
 });
 
 api.get("/api/v1/related/hadiths/:id", async (req, reply) => {
-  const id = Number((req.params as any).id);
+  const id = idParam(req);
   const lim = limit((req.query as any).limit, 12, 30);
   const a = await sql`SELECT embedding FROM hadith_occurrences WHERE id = ${id}`;
   if (!a.length || a[0].embedding == null)
@@ -285,7 +289,7 @@ api.get("/api/v1/related/hadiths/:id", async (req, reply) => {
 /** Semantically nearest meaning groups by stored embedding (no query encoder
  *  needed — uses the group's own vector as anchor). */
 api.get("/api/v1/related/groups/:id", async (req, reply) => {
-  const id = Number((req.params as any).id);
+  const id = idParam(req);
   const lim = limit((req.query as any).limit, 12, 30);
   const anchor = await sql`SELECT embedding FROM meaning_groups WHERE id = ${id}`;
   if (!anchor.length || anchor[0].embedding == null)
@@ -341,7 +345,7 @@ api.get("/api/v1/scholars", async (req) => {
 });
 
 api.get("/api/v1/persons/:id", async (req, reply) => {
-  const id = Number((req.params as any).id);
+  const id = idParam(req);
   const rows = await sql`SELECT * FROM persons WHERE id = ${id}`;
   if (!rows.length)
     return reply.code(404).send(badRequest("NOT_FOUND", "person not found"));
@@ -390,7 +394,7 @@ api.get("/api/v1/persons/:id", async (req, reply) => {
 });
 
 api.get("/api/v1/persons/:id/hadiths", async (req, reply) => {
-  const id = Number((req.params as any).id);
+  const id = idParam(req);
   const lim = limit((req.query as any).limit, 30, 100);
   const cursor = Number((req.query as any).cursor ?? 0) || 0;
   return await sql`
@@ -406,7 +410,7 @@ api.get("/api/v1/persons/:id/hadiths", async (req, reply) => {
 });
 
 api.get("/api/v1/persons/:id/relationships", async (req, reply) => {
-  const id = Number((req.params as any).id);
+  const id = idParam(req);
   const depth = Math.min(Number((req.query as any).depth ?? 1) || 1, 2);
   // bounded traversal over documented edges
   return await sql`
@@ -430,7 +434,7 @@ api.get("/api/v1/persons/:id/relationships", async (req, reply) => {
 
 /** Chain-derived teacher→student edges (co-narration), top weighted. */
 api.get("/api/v1/persons/:id/network", async (req, reply) => {
-  const id = Number((req.params as any).id);
+  const id = idParam(req);
   const lim = limit((req.query as any).limit, 80, 200);
   const edges = await sql`
     SELECT m2.person_id AS teacher, m.person_id AS student, count(*) AS weight
@@ -488,7 +492,7 @@ api.get("/api/v1/books", async () => {
 });
 
 api.get("/api/v1/books/:id", async (req, reply) => {
-  const id = Number((req.params as any).id);
+  const id = idParam(req);
   const w = await sql`SELECT * FROM works WHERE id = ${id}`;
   if (!w.length) return reply.code(404).send(badRequest("NOT_FOUND", "work not found"));
   const lim = limit((req.query as any).limit, 30, 100);
@@ -508,7 +512,7 @@ api.get("/api/v1/topics", async (req) => {
 });
 
 api.get("/api/v1/topics/:id", async (req, reply) => {
-  const id = Number((req.params as any).id);
+  const id = idParam(req);
   const t = await sql`SELECT * FROM topics WHERE id = ${id}`;
   if (!t.length) return reply.code(404).send(badRequest("NOT_FOUND", "topic not found"));
   const children = await sql`SELECT id, title_ar, title_en, level FROM topics
@@ -530,7 +534,7 @@ api.get("/api/v1/places", async () => {
 });
 
 api.get("/api/v1/places/:id", async (req, reply) => {
-  const id = Number((req.params as any).id);
+  const id = idParam(req);
   const p = await sql`SELECT * FROM places WHERE id = ${id}`;
   if (!p.length) return reply.code(404).send(badRequest("NOT_FOUND", "place not found"));
   const scholars = await sql`
@@ -566,7 +570,7 @@ api.get("/api/v1/positions", async () => {
 });
 
 api.get("/api/v1/positions/:id", async (req, reply) => {
-  const id = Number((req.params as any).id);
+  const id = idParam(req);
   const pos = await sql`SELECT * FROM positions WHERE id = ${id}`;
   if (!pos.length)
     return reply.code(404).send(badRequest("NOT_FOUND", "position not found"));
