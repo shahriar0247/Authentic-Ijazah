@@ -12,13 +12,17 @@ positions layer.
 | hadith occurrences | 715,790 | Al-Jamiʿ hadith-kg (425 collections) |
 | isnad routes | 577,024 | same — `sanads` |
 | chain mentions | ~4.4M | same — `sanad_rawis` |
-| narrator dossiers | ~51K hkg + 25K ms + ~135K hw | hkg `rawis`+`alems`, MuslimScholars, Hawramani |
-| jarh wa-taʿdil | ~128K | hkg `aqwal` (1,015 critics) |
+| narrator dossiers | 178,159 | hkg `rawis`+`alems`, MuslimScholars, Hawramani |
+| jarh wa-taʿdil | 127,863 | hkg `aqwal` (1,015 critics) |
 | meaning groups | 20,745 (+768-d vectors) | hkg `meaning_groups`+`group_embedding` |
-| subject tree | ~55K | hkg `topics` |
-| transmission edges | ~814K observed | Zenodo ER narrator_edges (Sanadset) |
-| identity links | ~190K candidate pairs | Zenodo ER narrator/sanad links |
-| translations | en/ar by verified join | AhmedBaset/hadith-json |
+| subject tree | 54,862 | hkg `topics` |
+| transmission edges | 401,423 resolved | Zenodo ER narrator_edges (Sanadset) |
+| identity links | 161,825 matches | Zenodo ER narrator/sanad links |
+| translations | 20,980 en (verified joins) | AhmedBaset/hadith-json |
+| hadith embeddings | 592,745 × 768-d | matn + athar embedding DBs |
+| sahib/jarh flags | 1,735 Bukhari · 1,961 Muslim · 83 tadlis | hadith-app.db |
+| place events | 47,760 (74 coordinated places) | hkg + muslimscholars + app.db |
+| editorial positions | 10 seeded | cited excerpts as source_passages |
 
 ## Stack
 
@@ -34,7 +38,7 @@ positions layer.
 - **mention ≠ person** — text-level narrator mentions (`hadith_annotations`,
   `isnad_mentions`) are separate from resolved `persons`; orphan mentions get
   flagged stub persons, never silently merged.
-- **narrated-from ≠ studied-under** — chain-derived edges are `observed`
+- **narrated-from ≠ studied-under** — chain-derived edges are `inferred`
   transmission; `documented` is reserved for biographical sources.
 - **every claim has provenance** — `sources` registry, `external_identifiers`,
   `person_matches` (method/confidence/status), `position_*` editorial review.
