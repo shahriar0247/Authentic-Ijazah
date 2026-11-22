@@ -8,6 +8,7 @@ const dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const config: NextConfig = {
   reactStrictMode: true,
+  allowedDevOrigins: ["127.0.0.1", "localhost"],
 };
 
 export default withNextIntl(config);

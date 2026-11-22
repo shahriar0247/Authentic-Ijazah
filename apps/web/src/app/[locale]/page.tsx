@@ -40,7 +40,7 @@ export default async function Home({
         <div className="mt-4 flex flex-wrap justify-center gap-2 text-xs text-stone-500">
           {Object.entries(stats.stats ?? {}).slice(0, 8).map(([k, v]) => (
             <span key={k} className="badge badge-muted">
-              {k.replaceAll("_", " ")}: {Number(v).toLocaleString(locale)}
+              {k.replaceAll("_", " ")}: {Number(v).toLocaleString(locale === "ar" ? "ar-EG" : "en")}
             </span>
           ))}
         </div>
