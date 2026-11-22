@@ -25,8 +25,17 @@ export default async function ScholarsPage({
 
   const filters = [
     ["companion", "صحابي"], ["critic", "ناقد"],
+    ["sahih=bukhari", "رواة البخاري"], ["sahih=muslim", "رواة مسلم"],
+    ["sahih=both", "رواة الصحيحين"],
+    ["flags=tadlis", "مدلسون"],
     ...RANKS.map((r) => [`rank=${r}`, r] as const),
   ];
+
+  const active = (f: string) =>
+    f.startsWith("rank=") ? sp.rank === f.split("=")[1]
+    : f.startsWith("sahih=") ? sp.sahih === f.split("=")[1]
+    : f.startsWith("flags=") ? sp.flags === f.split("=")[1]
+    : sp[f] === "1";
 
   return (
     <div className="space-y-5">
@@ -34,15 +43,11 @@ export default async function ScholarsPage({
       <SearchBox locale={locale} placeholder={t("home.searchPlaceholder")} initial={sp.q ?? ""} />
       <div className="flex flex-wrap gap-2">
         {filters.map(([f, label]) => {
-          const active = f.includes("=")
-            ? sp.rank === f.split("=")[1]
-            : sp[f] === "1";
-          const href = f.includes("=")
-            ? `?${active ? "" : f}`
-            : `?${active ? "" : `${f}=1`}`;
+          const on = active(f);
+          const href = `?${on ? "" : f}`;
           return (
             <Link key={f} href={`/${locale}/scholars${href}`}
-              className={`badge ${active ? "badge-thiqa" : "badge-muted"} hover:opacity-80`}>
+              className={`badge ${on ? "badge-thiqa" : "badge-muted"} hover:opacity-80`}>
               {label}
             </Link>
           );

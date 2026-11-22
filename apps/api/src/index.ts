@@ -256,6 +256,8 @@ api.get("/api/v1/scholars", async (req) => {
   const rank = q.rank ?? null;
   const critic = q.critic === "1";
   const companion = q.companion === "1";
+  const sahih = q.sahih ?? null; // 'bukhari' | 'muslim' | 'both'
+  const jarhFlag = q.flags ?? null; // 'tadlis' | 'ikhtilat'
   const search = q.q ? normalizeArabic(q.q) : null;
 
   return await sql`
@@ -270,6 +272,14 @@ api.get("/api/v1/scholars", async (req) => {
       AND (${rank}::text IS NULL OR p.rank_norm ILIKE ${"%" + (rank ?? "") + "%"})
       AND (NOT ${critic} OR p.is_critic)
       AND (NOT ${companion} OR p.is_companion)
+      AND (${sahih}::text IS NULL OR
+           (${sahih} = 'bukhari' AND p.flags->>'isBukhari' = 'true') OR
+           (${sahih} = 'muslim' AND p.flags->>'isMuslim' = 'true') OR
+           (${sahih} = 'both' AND p.flags->>'isBukhari' = 'true'
+            AND p.flags->>'isMuslim' = 'true'))
+      AND (${jarhFlag}::text IS NULL OR
+           (${jarhFlag} = 'tadlis' AND p.flags->>'hasTadlis' = 'true') OR
+           (${jarhFlag} = 'ikhtilat' AND p.flags->>'hasIkhtilat' = 'true'))
       AND (${search}::text IS NULL OR p.search_text % ${search}
            OR p.search_text ILIKE ${"%" + (search ?? "") + "%"})
     ORDER BY ${search ? sql`similarity(p.search_text, ${search}) DESC NULLS LAST,` : sql``}

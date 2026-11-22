@@ -35,8 +35,13 @@ export default async function PersonPage({
               {p.is_companion && <span className="badge badge-sahabi">صحابي</span>}
               {p.is_critic && <span className="badge badge-critic">{t("search.persons")} · critic</span>}
               {p.rank_ar && <span className={`badge ${rankBadge(p.rank_norm)}`}>{p.rank_ar}</span>}
+              {p.flags?.isBukhari && <span className="badge badge-thiqa">راوية في البخاري</span>}
+              {p.flags?.isMuslim && <span className="badge badge-thiqa">راوية في مسلم</span>}
+              {p.flags?.hasTadlis && <span className="badge badge-daif">تدليس</span>}
+              {p.flags?.hasIkhtilat && <span className="badge badge-daif">اختلاط</span>}
               {p.tabaqa && <span className="badge badge-muted">{p.tabaqa}</span>}
-              {p.generation_ord && <span className="badge badge-muted">g{p.generation_ord}</span>}
+              {p.generation_ord != null && <span className="badge badge-muted">g{p.generation_ord}</span>}
+              {p.flags?.age && <span className="badge badge-muted">{p.flags.age} سنة</span>}
               {p.is_stub && <span className="badge badge-muted">stub</span>}
             </div>
           </div>

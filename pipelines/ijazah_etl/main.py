@@ -69,6 +69,9 @@ SOURCES = [
     ("hadith-json", "AhmedBaset/hadith-json (sunnah.com dump)", "dataset",
      "open", "https://github.com/AhmedBaset/hadith-json",
      "English translations scraped from sunnah.com"),
+    ("hadith-app", "Al-Jami' app denormalized corpus (hadith-app.db)", "dataset",
+     "CC-BY-4.0", "https://huggingface.co/datasets/emadjumaah/hadith-kg",
+     "Enriched rawi metadata: exact AH years, Sahih flags, jarh flags"),
 ]
 
 # hadith-json filename -> substring(s) to locate the hadith-kg work title
@@ -148,12 +151,13 @@ def copy_rows(cur, table: str, cols: list[str], rows, batch: int = 50_000) -> in
 
 
 def stage_sources(cur) -> None:
-    cur.execute("DELETE FROM sources")
     for slug, name, kind, lic, url, attr in SOURCES:
         cur.execute(
             """INSERT INTO sources (slug,name,kind,license,url,attribution)
                VALUES (%s,%s,%s,%s,%s,%s) ON CONFLICT (slug) DO UPDATE
-               SET name=EXCLUDED.name""",
+               SET name=EXCLUDED.name, kind=EXCLUDED.kind,
+                   license=EXCLUDED.license, url=EXCLUDED.url,
+                   attribution=EXCLUDED.attribution""",
             (slug, name, kind, lic, url, attr),
         )
     log(f"sources: {len(SOURCES)}")
@@ -859,6 +863,69 @@ def stage_kg_geo(cur) -> None:
     log(f"kg_geo: {n:,} events over {len(needed):,} places")
 
 
+def stage_appdb(cur) -> None:
+    """hadith-app.db -> enrich persons: exact birth/death AH, death-place
+    events, Sahih narrator flags (isBukhari/isMuslim), jarh flags
+    (hasTadlis/hasIkhtilat). Same corpus as hadith-kg — rawiId is 1:1."""
+    f = RAW / "hadith-app.db"
+    if not f.exists():
+        log("hadith-app.db missing — skipped")
+        return
+    sid = src_id(cur, "hadith-app")
+    adb = sqlite3.connect(f)
+    adb.row_factory = sqlite3.Row
+
+    cur.execute("DROP TABLE IF EXISTS _rawi_meta")
+    cur.execute("""CREATE TEMP TABLE _rawi_meta (
+                   id bigint PRIMARY KEY, birth int, death int,
+                   death_place text, flags jsonb)""")
+
+    def meta_rows():
+        for r in adb.execute(
+            """SELECT rawiId, birthYear, deathYear, deathPlace, ageRaw,
+                      isBukhari, isMuslim, hasTadlis, hasIkhtilat
+               FROM rawis"""):
+            flags = {k: bool(r[k]) for k in
+                     ("isBukhari", "isMuslim", "hasTadlis", "hasIkhtilat")
+                     if r[k]}
+            if r["ageRaw"]:
+                flags["age"] = r["ageRaw"]
+            yield (r["rawiId"], r["birthYear"], r["deathYear"],
+                   r["deathPlace"], json.dumps(flags, ensure_ascii=False))
+    copy_rows(cur, "_rawi_meta",
+              ["id", "birth", "death", "death_place", "flags"], meta_rows())
+
+    cur.execute("""UPDATE persons p SET
+                     birth_ah_min = COALESCE(p.birth_ah_min, m.birth),
+                     birth_ah_max = COALESCE(p.birth_ah_max, m.birth),
+                     death_ah_min = COALESCE(p.death_ah_min, m.death),
+                     death_ah_max = COALESCE(p.death_ah_max, m.death),
+                     flags = COALESCE(p.flags,'{}'::jsonb) || m.flags
+                   FROM _rawi_meta m WHERE p.id = m.id""")
+    log(f"appdb: {cur.rowcount:,} persons enriched")
+
+    # death places -> events (replaces kg_geo 'died' events for same people)
+    cur.execute("""DELETE FROM person_place_events
+                   WHERE kind='died' AND passage_id IS NULL
+                     AND person_id < %s""", (NS_MS,))
+    names = {r[0] for r in adb.execute(
+        "SELECT DISTINCT deathPlace FROM rawis WHERE deathPlace IS NOT NULL"
+        " AND deathPlace != ''")}
+    names = {normalize(n) for n in names if len(normalize(n)) >= 3}
+    resolved = {k: _place_for(cur, k, sid) for k in names}
+    pid_place = [(r["rawiId"], resolved.get(normalize(r["deathPlace"])))
+                 for r in adb.execute(
+                     "SELECT rawiId, deathPlace FROM rawis"
+                     " WHERE deathPlace IS NOT NULL AND deathPlace != ''")]
+    n = copy_rows(cur, "person_place_events",
+                  ["person_id", "place_id", "kind", "ah_min", "ah_max",
+                   "passage_id"],
+                  ((pid, p, "died", None, None, None)
+                   for pid, p in pid_place if p))
+    adb.close()
+    log(f"appdb: {n:,} death-place events")
+
+
 def stage_embeddings(cur) -> None:
     """matn-embedding.db -> hadith_occurrences.embedding.
     Vectors are 768 int8-quantized values; stored as float (cosine <=> is
@@ -940,11 +1007,12 @@ STAGES = {
     "sanadset": stage_sanadset,
     "translations": stage_translations,
     "kg_geo": stage_kg_geo,
+    "appdb": stage_appdb,
     "embeddings": stage_embeddings,
     "finalize": stage_finalize,
 }
 ORDER = ["sources", "kg", "muslimscholars", "hawramani", "links",
-         "sanadset", "translations", "kg_geo", "embeddings", "finalize"]
+         "sanadset", "translations", "kg_geo", "appdb", "embeddings", "finalize"]
 
 
 def main() -> None:
