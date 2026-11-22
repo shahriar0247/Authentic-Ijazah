@@ -47,6 +47,10 @@ DATABASE_URL = os.environ.get(
 NS_ALEM = 1_000_000
 NS_MS = 2_000_000
 NS_HW = 3_000_000
+NS_RW = 4_000_000   # riwayat narrators: 4M + int(N-id)
+NS_RW_H = 10_000_000   # riwayat hadiths: 10M + int(H-id)
+NS_RW_W = 9_000_000    # riwayat-derived works
+NS_RW_R = 20_000_000   # riwayat isnad routes
 NS_ORPHAN = 8_000_000  # orphan mention stubs: 8M + rawi_id (never collides)
 
 
@@ -75,6 +79,10 @@ SOURCES = [
     ("editorial", "Authentic Ijazah editorial seed (aqidah/fiqh positions)",
      "editorial", "CC-BY-SA-4.0", "https://github.com/shahriar0247/Authentic-Ijazah",
      "Curated positions with attributed excerpts from primary works"),
+    ("riwayat", "Riwāyāt corpus (Sunni transmission subset)", "dataset",
+     "open", "https://doi.org/10.5281/zenodo.23630500",
+     "Wirahman — Sunni books imported; Shīʿī corpus used only as "
+     "narrator-deviance signal, never as hadith source"),
 ]
 
 # hadith-json filename -> substring(s) to locate the hadith-kg work title
@@ -1067,6 +1075,255 @@ def stage_embeddings(cur) -> None:
     log(f"hadith embeddings: staged {total:,}, set {cur.rowcount:,}")
 
 
+def stage_riwayat(cur) -> None:
+    """hadith_master.db (Riwāyāt corpus) -> Sunni books, narrators, chains.
+
+    Shīʿī books are never imported as hadith content; narrator `tradition`
+    marks are kept only as deviance signals. Hadiths carrying a
+    source_ids.kg link are already in the KG layer and skipped.
+    """
+    f = RAW / "hadith_master.db"
+    if not f.exists():
+        log("hadith_master.db missing — skipped")
+        return
+    sid = src_id(cur, "riwayat")
+    db = sqlite3.connect(f)
+    db.row_factory = sqlite3.Row
+
+    # ---- purge prior riwayat rows (idempotent rerun)
+    cur.execute("""DELETE FROM isnad_mentions m USING isnad_routes r
+                   WHERE m.route_id = r.id AND r.id >= %s""", (NS_RW_R,))
+    cur.execute("DELETE FROM isnad_routes WHERE id >= %s", (NS_RW_R,))
+    cur.execute("DELETE FROM hadith_occurrences WHERE id >= %s", (NS_RW_H,))
+    cur.execute("DELETE FROM works WHERE id >= %s", (NS_RW_W,))
+    cur.execute("""DELETE FROM person_relationships
+                   WHERE (subject_id >= %s AND subject_id < %s)
+                      OR (object_id >= %s AND object_id < %s)""",
+                (NS_RW, NS_RW + 1_000_000, NS_RW, NS_RW + 1_000_000))
+    cur.execute("""DELETE FROM person_matches
+                   WHERE (person_a >= %s AND person_a < %s)
+                      OR (person_b >= %s AND person_b < %s)""",
+                (NS_RW, NS_RW + 1_000_000, NS_RW, NS_RW + 1_000_000))
+    cur.execute("""DELETE FROM person_names
+                   WHERE person_id >= %s AND person_id < %s""",
+                (NS_RW, NS_RW + 1_000_000))
+    cur.execute("""DELETE FROM person_place_events
+                   WHERE person_id >= %s AND person_id < %s""",
+                (NS_RW, NS_RW + 1_000_000))
+    cur.execute("DELETE FROM persons WHERE id >= %s AND id < %s",
+                (NS_RW, NS_RW + 1_000_000))
+
+    # ---- narrator resolution: rw -> existing kg person (corpus's own link)
+    res = {}
+    for r in db.execute(
+            "SELECT narrator_id, source_id FROM narrator_source_id"
+            " WHERE source='kg'"):
+        try:
+            res[r["narrator_id"]] = int(r["source_id"])
+        except (TypeError, ValueError):
+            pass
+    cur.execute("DROP TABLE IF EXISTS _rw_res")
+    cur.execute("CREATE TEMP TABLE _rw_res (nid text PRIMARY KEY, pid bigint)")
+    copy_rows(cur, "_rw_res", ["nid", "pid"], res.items())
+    cur.execute("""DELETE FROM _rw_res r WHERE NOT EXISTS
+                   (SELECT 1 FROM persons p WHERE p.id = r.pid)""")
+    res = {nid: pid for nid, pid
+           in cur.execute("SELECT nid, pid FROM _rw_res").fetchall()}
+    log(f"riwayat: {len(res):,} narrators resolve onto kg persons")
+
+    def rw_pid(nid):
+        return res.get(nid) or (NS_RW + int(nid[1:]))
+
+    # ---- persons (all narrators incl. shia — flagged, never hadith sources)
+    n = copy_rows(cur, "persons",
+        ["id", "display_name_ar", "birth_ah_min", "birth_ah_max",
+         "death_ah_min", "death_ah_max", "tabaqa", "madhhab_fiqh", "flags"],
+        ((NS_RW + int(r["id"][1:]),
+          r["std_name"] or f"راوٍ غير مسمّى {r['id']}",
+          r["birth_year"], r["birth_year"],
+          r["death_year"], r["death_year"],
+          r["tabaqa"], (r["madhhab"] or "")[:64] or None,
+          json.dumps({"rw_tradition": r["tradition"],
+                      **({"tashayyu": True} if r["tradition"] == "shia" else {}),
+                      **({"rw_madhhab_note": r["madhhab"]}
+                         if r["madhhab"] and len(r["madhhab"]) > 64 else {})},
+                     ensure_ascii=False))
+         for r in db.execute(
+             "SELECT id, std_name, tradition, death_year, birth_year,"
+             " tabaqa, madhhab FROM narrator")))
+    log(f"riwayat persons: {n:,}")
+    n = copy_rows(cur, "person_names", ["person_id", "kind", "value"],
+                  ((NS_RW + int(r["id"][1:]), "ar", r["std_name"])
+                   for r in db.execute(
+                       "SELECT id, std_name FROM narrator"
+                       " WHERE std_name IS NOT NULL")))
+    log(f"riwayat person_names: {n:,}")
+
+    # identity links rw->kg recorded as matches too (method = corpus's own)
+    n = copy_rows(cur, "person_matches",
+        ["person_a", "person_b", "method", "confidence", "status",
+         "source_id"],
+        ((NS_RW + int(nid[1:]), pid, "corpus_asserted", "high",
+          "published", sid) for nid, pid in res.items()))
+    log(f"riwayat person_matches: {n:,}")
+
+    # ---- works: normalize-title join else create
+    wmap = {}
+    for wid, title in cur.execute("SELECT id, title_ar FROM works").fetchall():
+        wmap.setdefault(normalize(title), wid)
+    new_works, book_work, wseq = [], {}, NS_RW_W
+    for b, in db.execute(
+            "SELECT DISTINCT book FROM hadith WHERE tradition='sunni'"):
+        wid = wmap.get(normalize(b))
+        if wid is None:
+            wid = wseq
+            wseq += 1
+            new_works.append((wid, b, "riwayat", sid))
+        book_work[b] = wid
+    n = copy_rows(cur, "works",
+                  ["id", "title_ar", "category", "source_id"], new_works)
+    log(f"riwayat works: {n:,} new / {len(book_work):,} mapped")
+
+    # ---- hadiths: sunni tradition, no kg link (new content only)
+    n = copy_rows(cur, "hadith_occurrences",
+        ["id", "work_id", "hadith_no", "in_book_ref", "text_ar",
+         "matn_start", "matn_end", "search_text"],
+        ((NS_RW_H + int(r["id"][1:]), book_work[r["book"]], r["number"],
+          f"riwayat:{r['id']}|tier:{r['chain_tier']}",
+          r["text"], r["matn_start"], r["matn_end"], normalize(r["text"]))
+         for r in db.execute(
+             "SELECT id, book, number, text, matn_start, matn_end,"
+             " chain_tier FROM hadith WHERE tradition='sunni'"
+             " AND source_ids NOT LIKE '%\"kg\"%'")))
+    log(f"riwayat hadiths (new): {n:,}")
+
+    # ---- chains for the imported hadiths (materialize before COPY)
+    chains = {}
+    for r in db.execute(
+            "SELECT c.hadith_id, c.chain_no, c.pos, c.surface,"
+            " c.narrator_id, c.id_method FROM chain_mention c"
+            " JOIN hadith h ON h.id = c.hadith_id"
+            " WHERE h.tradition='sunni'"
+            " AND h.source_ids NOT LIKE '%\"kg\"%'"
+            " ORDER BY c.hadith_id, c.chain_no, c.pos"):
+        chains.setdefault((r["hadith_id"], r["chain_no"]), []).append(
+            (r["pos"], r["surface"], r["narrator_id"], r["id_method"]))
+    routes, mentions, rseq = [], [], NS_RW_R
+    for (hid, _cno), ms in chains.items():
+        rid = rseq
+        rseq += 1
+        routes.append((rid, NS_RW_H + int(hid[1:]), len(ms)))
+        for pos, surface, nid, method in ms:
+            pid = rw_pid(nid) if nid and nid != "N0003708" else None
+            method = method or ""
+            status = ("verified" if method.startswith("source_annotation")
+                      or method == "surgery_asserted"
+                      else "unresolved"
+                      if nid is None or "unresolved" in method
+                      or "candidates" in method
+                      else "candidate")
+            mentions.append((rid, pos, (surface or "")[:512], pid, status))
+    n = copy_rows(cur, "isnad_routes", ["id", "hadith_id", "length"], routes)
+    log(f"riwayat routes: {n:,}")
+    n = copy_rows(cur, "isnad_mentions",
+        ["route_id", "pos", "mention_text", "person_id",
+         "identification_status"], mentions)
+    log(f"riwayat mentions: {n:,}")
+
+    # ---- transmission edges w/ chronology-suspect provenance
+    cur.execute("DROP TABLE IF EXISTS _rw_edges")
+    cur.execute("""CREATE TEMP TABLE _rw_edges
+                   (a bigint, b bigint, w int, suspect text)""")
+    copy_rows(cur, "_rw_edges", ["a", "b", "w", "suspect"],
+              ((rw_pid(r["student"]), rw_pid(r["teacher"]),
+                r["n_hadith"], r["suspect"])
+               for r in db.execute(
+                   "SELECT student, teacher, n_hadith, suspect"
+                   " FROM narrator_edge")))
+    cur.execute("""INSERT INTO person_relationships
+                     (subject_id, predicate, object_id, weight, status,
+                      provenance)
+                   SELECT a, 'narrated_from', b, w, 'inferred',
+                          jsonb_build_object('source', 'riwayat',
+                                             'suspect', suspect)
+                   FROM _rw_edges e
+                   WHERE NOT EXISTS (SELECT 1 FROM person_relationships p
+                       WHERE p.subject_id = e.a AND p.object_id = e.b
+                         AND p.predicate = 'narrated_from')""")
+    log(f"riwayat edges: {cur.rowcount:,} new")
+    db.close()
+
+
+def stage_deviance(cur) -> None:
+    """Aggregate worst jarh severity + deviance signals into persons.flags.
+
+    jarh_grade: 0 clean | 1 soft jarh | 2 hard jarh | 3 accused
+    fabricator/deviant. tags drive the red UI treatment. Source text stays
+    authoritative — every grade traces to assessments rows.
+    """
+    cur.execute("DROP TABLE IF EXISTS _dev")
+    cur.execute(r"""
+        CREATE TEMP TABLE _dev AS
+        SELECT target_person_id AS pid,
+               MAX(CASE
+                   WHEN text_ar ~
+                     'وضاع|كذاب|متهم بالكذب|يسرق الحديث|يضع الحديث|زنديق|دجال|رافضي|غال في التشيع|خارجي'
+                     THEN 3
+                   WHEN text_ar ~
+                     'متروك|ساقط|مهجور|ضعيف جدا|منكر الحديث|واهي الحديث|لا يحتج به|لا يكتب حديثه'
+                     THEN 2
+                   WHEN text_ar ~
+                     'ضعيف|لين الحديث|مقارب|سيئ الحفظ|سيىء الحفظ|كثير الغلط|كثير الوهم|مدلس|يختلط|اختلط|مجهول|لا يعرف|متهم|مبتدع|يخطئ|يهم'
+                     THEN 1
+                   WHEN text_ar ~
+                     'ثقه|ثقة|ثبت|حجه|حجة|صدوق|حافظ|امام|عدل|متقن|لا باس به|صالح|مقر'
+                     THEN 0
+                   ELSE NULL END) AS grade
+        FROM assessments GROUP BY target_person_id""")
+    cur.execute("CREATE INDEX ON _dev(pid)")
+    cur.execute(r"""UPDATE persons p SET flags = COALESCE(p.flags,'{}'::jsonb)
+                    || jsonb_build_object('jarh_grade', d.grade)
+                    FROM _dev d WHERE p.id = d.pid AND d.grade IS NOT NULL""")
+    log(f"deviance: {cur.rowcount:,} narrators graded from jarh texts")
+
+    cur.execute(r"""UPDATE persons p SET flags = p.flags ||
+                    jsonb_build_object('deviance', t.tags)
+                    FROM (SELECT pid, jsonb_agg(DISTINCT tag) AS tags FROM (
+                          SELECT target_person_id AS pid, 'kadhib' AS tag
+                          FROM assessments
+                          WHERE text_ar ~ 'وضاع|كذاب|يضع الحديث|يسرق الحديث'
+                          UNION ALL
+                          SELECT target_person_id, 'matruk' FROM assessments
+                          WHERE text_ar ~ 'متروك|ساقط|مهجور'
+                          UNION ALL
+                          SELECT target_person_id, 'tashayyu_accused'
+                          FROM assessments
+                          WHERE text_ar ~ 'متهم بالتشيع|رافضي|غال في التشيع'
+                          UNION ALL
+                          SELECT target_person_id, 'bidah' FROM assessments
+                          WHERE text_ar ~ 'زنديق|مبتدع|خارجي|دجال'
+                          UNION ALL
+                          SELECT id, 'tadlis' FROM persons
+                          WHERE (flags->>'hasTadlis')::boolean
+                          UNION ALL
+                          SELECT id, 'ikhtilat' FROM persons
+                          WHERE (flags->>'hasIkhtilat')::boolean
+                          UNION ALL
+                          SELECT id, 'tashayyu' FROM persons
+                          WHERE (flags->>'tashayyu')::boolean
+                          UNION ALL
+                          SELECT id, 'bidah' FROM persons
+                          WHERE flags->>'rw_madhhab_note'
+                            ~ 'خوارج|قدر|تشيع|رافض|زنديق|مبتدع|جهمي|مرجئ'
+                          UNION ALL
+                          SELECT subject_id, 'suspect_chronology'
+                          FROM person_relationships
+                          WHERE provenance->>'suspect' IS NOT NULL
+                          ) d GROUP BY pid) t
+                    WHERE p.id = t.pid""")
+    log(f"deviance: {cur.rowcount:,} narrators tagged")
+
+
 def stage_finalize(cur) -> None:
     # heuristic verdict classification of jarh wa-taʿdil wording (source text
     # remains authoritative; this is a search/filter aid only)
@@ -1123,13 +1380,15 @@ STAGES = {
     "kg_geo": stage_kg_geo,
     "appdb": stage_appdb,
     "kg_edges": stage_kg_edges,
+    "riwayat": stage_riwayat,
+    "deviance": stage_deviance,
     "positions": stage_positions,
     "embeddings": stage_embeddings,
     "finalize": stage_finalize,
 }
 ORDER = ["sources", "kg", "muslimscholars", "hawramani", "links",
          "sanadset", "translations", "kg_geo", "appdb", "kg_edges",
-         "positions",
+         "riwayat", "deviance", "positions",
          "embeddings", "finalize"]
 
 

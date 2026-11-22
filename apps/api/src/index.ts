@@ -134,7 +134,7 @@ api.get("/api/v1/hadith/:id/chains", async (req, reply) => {
     ? await sql`
         SELECT m.route_id, m.pos, m.mention_text, m.verb, m.person_id,
                p.display_name_ar, p.rank_ar, p.rank_norm, p.tabaqa,
-               p.is_companion, p.is_stub
+               p.is_companion, p.is_stub, p.flags
         FROM isnad_mentions m
         LEFT JOIN persons p ON p.id = m.person_id
         WHERE m.route_id IN ${sql(routeIds)}
@@ -162,7 +162,7 @@ api.get("/api/v1/hadith/:id/dag", async (req) => {
   const nodes = ids.length
     ? await sql`
         SELECT id, display_name_ar, display_name_en, rank_ar, rank_norm,
-               tabaqa, death_ah_min, is_companion, is_critic
+               tabaqa, death_ah_min, is_companion, is_critic, flags
         FROM persons WHERE id IN ${sql(ids)}`
     : [];
   return {
@@ -226,7 +226,8 @@ api.get("/api/v1/groups/:id", async (req, reply) => {
   const nodes = ids.length
     ? await sql`
         SELECT id, display_name_ar, display_name_en, rank_ar, rank_norm,
-               tabaqa, generation_ord, death_ah_min, is_companion, is_critic
+               tabaqa, generation_ord, death_ah_min, is_companion, is_critic,
+               flags
         FROM persons WHERE id IN ${sql(ids)}`
     : [];
   const nodeSet = new Map(nodes.map((n) => [n.id, n]));
@@ -314,7 +315,7 @@ api.get("/api/v1/scholars", async (req) => {
   const critic = q.critic === "1";
   const companion = q.companion === "1";
   const sahih = q.sahih ?? null; // 'bukhari' | 'muslim' | 'both'
-  const jarhFlag = q.flags ?? null; // 'tadlis' | 'ikhtilat'
+  const jarhFlag = q.flags ?? null; // tadlis|ikhtilat|tashayyu|kadhib|matruk|deviant
   const search = q.q ? normalizeArabic(q.q) : null;
 
   return await sql`
@@ -324,7 +325,7 @@ api.get("/api/v1/scholars", async (req) => {
            (SELECT count(*) FROM assessments a WHERE a.target_person_id = p.id)
              AS assessment_count
     FROM persons p
-    WHERE p.id < 3000000  -- core curated persons first (hkg+ms)
+    WHERE p.id < 8000000  -- real persons (hkg+ms+hw+rw), not 8M orphan stubs
       AND (${tabaqa}::int IS NULL OR p.generation_ord = ${tabaqa})
       AND (${rank}::text IS NULL OR p.rank_norm ILIKE ${"%" + (rank ?? "") + "%"})
       AND (NOT ${critic} OR p.is_critic)
@@ -336,7 +337,17 @@ api.get("/api/v1/scholars", async (req) => {
             AND p.flags->>'isMuslim' = 'true'))
       AND (${jarhFlag}::text IS NULL OR
            (${jarhFlag} = 'tadlis' AND p.flags->>'hasTadlis' = 'true') OR
-           (${jarhFlag} = 'ikhtilat' AND p.flags->>'hasIkhtilat' = 'true'))
+           (${jarhFlag} = 'ikhtilat' AND p.flags->>'hasIkhtilat' = 'true') OR
+           (${jarhFlag} = 'tashayyu' AND
+            (p.flags->>'tashayyu' = 'true' OR
+             p.flags->'deviance' @> '["tashayyu"]' OR
+             p.flags->'deviance' @> '["tashayyu_accused"]')) OR
+           (${jarhFlag} = 'kadhib' AND
+            p.flags->'deviance' @> '["kadhib"]') OR
+           (${jarhFlag} = 'matruk' AND
+            p.flags->'deviance' @> '["matruk"]') OR
+           (${jarhFlag} = 'deviant' AND
+            COALESCE((p.flags->>'jarh_grade')::int, 0) >= 2))
       AND (${search}::text IS NULL OR p.search_text % ${search}
            OR p.search_text ILIKE ${"%" + (search ?? "") + "%"})
     ORDER BY ${search ? sql`similarity(p.search_text, ${search}) DESC NULLS LAST,` : sql``}
@@ -358,12 +369,17 @@ api.get("/api/v1/persons/:id", async (req, reply) => {
       sql`SELECT a.id, a.text_ar, a.verdict_class, c.display_name_ar AS critic
           FROM assessments a JOIN persons c ON c.id = a.critic_person_id
           WHERE a.target_person_id = ${id} LIMIT 60`,
-      sql`SELECT r.predicate, r.object_id AS other_id, r.weight, r.status,
+      sql`SELECT r.predicate::text AS predicate, r.object_id AS other_id,
+                 r.weight, r.status,
                  o.display_name_ar AS other_name, o.tabaqa AS other_tabaqa
           FROM person_relationships r JOIN persons o ON o.id = r.object_id
           WHERE r.subject_id = ${id}
           UNION ALL
-          SELECT r.predicate, r.subject_id, r.weight, r.status,
+          SELECT CASE r.predicate::text
+                   WHEN 'narrated_from' THEN 'narrated_to'
+                   WHEN 'studied_under' THEN 'taught'
+                   ELSE r.predicate::text END,
+                 r.subject_id, r.weight, r.status,
                  o.display_name_ar, o.tabaqa
           FROM person_relationships r JOIN persons o ON o.id = r.subject_id
           WHERE r.object_id = ${id}
@@ -449,7 +465,7 @@ api.get("/api/v1/persons/:id/network", async (req, reply) => {
   const nodes = ids.length
     ? await sql`
         SELECT id, display_name_ar, display_name_en, rank_ar, rank_norm,
-               tabaqa, death_ah_min, is_companion, is_critic
+               tabaqa, death_ah_min, is_companion, is_critic, flags
         FROM persons WHERE id IN ${sql(ids)}`
     : [];
   return { nodes, edges };

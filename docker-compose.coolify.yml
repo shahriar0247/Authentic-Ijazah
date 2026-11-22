@@ -1,0 +1,35 @@
+# Authentic Ijazah — Coolify deployment variant.
+# Uses an EXTERNAL Postgres (IJAZAH_DATABASE_URL env, set in Coolify) so the
+# 12GB corpus isn't duplicated. For a self-contained stack use
+# docker-compose.prod.yml instead.
+services:
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${IJAZAH_DATABASE_URL}
+      PORT: 8077
+    ports:
+      - "${IJAZAH_API_PORT:-8078}:8077"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8077/api/v1/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 30
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+    restart: unless-stopped
+    environment:
+      API_URL: http://api:8077
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8078}
+      PORT: 3000
+    ports:
+      - "${IJAZAH_WEB_PORT:-3080}:3000"
+    depends_on:
+      api:
+        condition: service_started

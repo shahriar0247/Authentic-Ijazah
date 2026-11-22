@@ -1,0 +1,49 @@
+# Authentic Ijazah — production stack for Coolify / docker compose.
+# DB data ships as a pgdata directory mount (IJAZAH_PGDATA env, host path
+# prepared by ops) OR via /docker-entrypoint-initdb.d restore — see deploy docs.
+services:
+  db:
+    image: docker.io/pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ijazah
+      POSTGRES_PASSWORD: ${IJAZAH_DB_PASSWORD:-ijazah}
+      POSTGRES_DB: ijazah
+    volumes:
+      - ${IJAZAH_PGDATA:-ijazah-pgdata}:/var/lib/postgresql/data
+      - ${IJAZAH_DBSEED:-./db-seed}:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ijazah"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://ijazah:${IJAZAH_DB_PASSWORD:-ijazah}@db:5432/ijazah
+      PORT: 8077
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8077/api/v1/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 30
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+    restart: unless-stopped
+    environment:
+      API_URL: http://api:8077
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://api:8077}
+      PORT: 3000
+    depends_on:
+      api:
+        condition: service_started

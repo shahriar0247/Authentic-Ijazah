@@ -5,6 +5,17 @@ import { GraphCanvas } from "@/components/GraphCanvas";
 
 export const dynamic = "force-dynamic";
 
+const DEVIANCE_AR: Record<string, string> = {
+  tashayyu: "تشيّع",
+  tashayyu_accused: "متهم بالتشيع",
+  kadhib: "متهم بالكذب / الوضع",
+  matruk: "متروك الحديث",
+  bidah: "متهم ببدعة",
+  tadlis: "تدليس",
+  ikhtilat: "اختلاط",
+  suspect_chronology: "شذوذ زمني في السند",
+};
+
 export default async function PersonPage({
   params,
 }: {
@@ -43,7 +54,17 @@ export default async function PersonPage({
               {p.generation_ord != null && <span className="badge badge-muted">g{p.generation_ord}</span>}
               {p.flags?.age && <span className="badge badge-muted">{p.flags.age} سنة</span>}
               {p.is_stub && <span className="badge badge-muted">stub</span>}
+              {(p.flags?.deviance ?? []).map((tag: string) => (
+                <span key={tag} className="badge badge-deviant">
+                  {DEVIANCE_AR[tag] ?? tag}
+                </span>
+              ))}
             </div>
+            {((p.flags?.jarh_grade ?? 0) >= 2 || p.flags?.tashayyu) && (
+              <div className="mt-3 rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-sm text-red-800">
+                {t("person.devianceWarning")}
+              </div>
+            )}
           </div>
           <dl className="grid grid-cols-2 gap-x-8 gap-y-1 text-sm">
             <dt className="text-stone-500">{t("person.born")}</dt>

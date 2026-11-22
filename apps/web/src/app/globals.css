@@ -32,6 +32,7 @@ body { @apply bg-paper text-ink antialiased; }
 .badge-thiqa { @apply bg-emerald-50 text-emerald-800 ring-emerald-600/25; }
 .badge-saduq { @apply bg-amber-50 text-amber-800 ring-amber-600/25; }
 .badge-daif { @apply bg-red-50 text-red-700 ring-red-600/25; }
+.badge-deviant { @apply bg-red-600 text-white ring-red-700/40 font-bold; }
 .badge-sahabi { @apply bg-purple-50 text-purple-700 ring-purple-600/25; }
 .badge-critic { @apply bg-sky-50 text-sky-700 ring-sky-600/25; }
 .badge-muted { @apply bg-stone-100 text-stone-600 ring-stone-500/20; }

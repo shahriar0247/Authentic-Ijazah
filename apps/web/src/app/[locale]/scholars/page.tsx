@@ -28,7 +28,9 @@ export default async function ScholarsPage({
     ["companion", "صحابي"], ["critic", "ناقد"],
     ["sahih=bukhari", "رواة البخاري"], ["sahih=muslim", "رواة مسلم"],
     ["sahih=both", "رواة الصحيحين"],
-    ["flags=tadlis", "مدلسون"],
+    ["flags=tadlis", "مدلسون"], ["flags=deviant", "متّهمون / منحرفون"],
+    ["flags=tashayyu", "تشيّع"], ["flags=kadhib", "متهمون بالكذب"],
+    ["flags=matruk", "متروكون"],
     ...RANKS.map((r) => [`rank=${r}`, r] as const),
   ];
 

@@ -25,6 +25,13 @@ export interface GNode {
   tabaqa?: string | null;
   is_companion?: boolean;
   is_critic?: boolean;
+  flags?: {
+    jarh_grade?: number;
+    deviance?: string[];
+    tashayyu?: boolean;
+    hasTadlis?: boolean;
+    hasIkhtilat?: boolean;
+  } | null;
 }
 export interface GEdge {
   teacher: number;
@@ -33,7 +40,22 @@ export interface GEdge {
   weight?: number;
 }
 
+const SEVERE_DEVIANCE = new Set([
+  "tashayyu",
+  "tashayyu_accused",
+  "kadhib",
+  "matruk",
+  "bidah",
+]);
+
 function nodeColor(n: GNode): string {
+  const grade = n.flags?.jarh_grade ?? -1;
+  const tags = n.flags?.deviance ?? [];
+  if (grade >= 3 || n.flags?.tashayyu || tags.some((t) => SEVERE_DEVIANCE.has(t)))
+    return "#fecaca"; // strong red — accused fabricator / deviant
+  if (grade === 2 || tags.includes("matruk")) return "#f8d7d0"; // hard jarh
+  if (grade === 1 || n.flags?.hasTadlis || n.flags?.hasIkhtilat)
+    return "#fde68a"; // soft jarh / needs scrutiny
   if (n.is_companion) return "#f3e8ff";
   const r = (n.rank_norm ?? "").toLowerCase();
   if (r.includes("thiqa") || r.includes("thabt") || r.includes("imam")) return "#d1f2e0";
@@ -69,7 +91,15 @@ async function layout(gn: GNode[], ge: GEdge[], dir: "UP" | "RIGHT") {
       data: { label: n.display_name_ar ?? n.display_name_en ?? `#${n.id}`, node: n },
       style: {
         background: nodeColor(n),
-        border: `1.5px solid ${n.is_critic ? "#0284c7" : "#d6d3d1"}`,
+        border: `1.5px solid ${
+          n.is_critic
+            ? "#0284c7"
+            : (n.flags?.jarh_grade ?? -1) >= 2 ||
+                n.flags?.tashayyu ||
+                (n.flags?.deviance ?? []).some((t) => SEVERE_DEVIANCE.has(t))
+              ? "#dc2626"
+              : "#d6d3d1"
+        }`,
         borderRadius: 10,
         fontSize: 12,
         padding: 8,

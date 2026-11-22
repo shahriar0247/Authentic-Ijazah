@@ -9,6 +9,8 @@ const dirname = path.dirname(fileURLToPath(import.meta.url));
 const config: NextConfig = {
   reactStrictMode: true,
   allowedDevOrigins: ["127.0.0.1", "localhost"],
+  output: "standalone",
+  outputFileTracingRoot: path.resolve(dirname, "../.."),
 };
 
 export default withNextIntl(config);
