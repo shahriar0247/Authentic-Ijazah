@@ -21,6 +21,9 @@ export default async function GroupPage({
     <div className="space-y-6">
       <header className="card p-6">
         <h1 className="font-quran text-2xl font-bold">{g.title_ar}</h1>
+        {locale === "en" && g.matn_en && (
+          <p className="mt-3 text-lg leading-relaxed">{g.matn_en}</p>
+        )}
         {g.taraf_nass && <p className="hadith-text mt-3 text-lg">{g.taraf_nass}</p>}
         <div className="mt-3 flex flex-wrap gap-2 text-xs">
           {g.is_qudsi && <span className="badge badge-sahabi">{t("group.qudsi")}</span>}

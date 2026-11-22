@@ -186,6 +186,17 @@ api.get("/api/v1/groups/:id", async (req, reply) => {
     FROM hadith_occurrences h JOIN works w ON w.id = h.work_id
     WHERE h.meaning_group_id = ${id} ORDER BY h.id LIMIT 500`;
 
+  // Representative English text for the group: prefer Sahih al-Bukhari's
+  // translation, else any member hadith's English translation.
+  const matnEn = await sql`
+    SELECT ht.text
+    FROM hadith_translations ht
+    JOIN hadith_occurrences h ON h.id = ht.hadith_id
+    JOIN works w ON w.id = h.work_id
+    WHERE h.meaning_group_id = ${id} AND ht.lang = 'en'
+    ORDER BY (w.title_ar = 'صحيح البخاري') DESC, h.id
+    LIMIT 1`;
+
   // merged isnad DAG over all routes of this meaning:
   // pos ascends collector -> companion, so narrator(pos+1) narrates to narrator(pos)
   const edges = await sql`
@@ -256,7 +267,7 @@ api.get("/api/v1/groups/:id", async (req, reply) => {
     }));
 
   return {
-    group: g[0],
+    group: { ...g[0], matn_en: matnEn[0]?.text ?? null },
     hadiths,
     dag: {
       nodes,
