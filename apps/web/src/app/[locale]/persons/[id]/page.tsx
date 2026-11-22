@@ -54,6 +54,19 @@ export default async function PersonPage({
             <dd>{d.narratedHadithCount?.toLocaleString(locale)}</dd>
             <dt className="text-stone-500">{t("person.tabaqa")}</dt>
             <dd>{p.tabaqa ?? "—"}</dd>
+            {!!d.places?.length && (
+              <>
+                <dt className="text-stone-500">{t("person.places")}</dt>
+                <dd>
+                  {d.places.map((pl: any, i: number) => (
+                    <span key={i} className="me-2">
+                      {pl.name_ar ?? pl.name_en}
+                      <span className="text-xs text-stone-400"> ({pl.kind})</span>
+                    </span>
+                  ))}
+                </dd>
+              </>
+            )}
           </dl>
         </div>
         {!!d.externalIds?.length && (

@@ -15,7 +15,7 @@
   },
   "search": { "results": "نتيجة", "hadiths": "الأحاديث", "persons": "الرواة", "topics": "الموضوعات", "empty": "لا نتائج — جرّب عبارة أخرى" },
   "hadith": { "matn": "المتن", "isnad": "الإسناد", "routes": "طرق الإسناد", "translation": "الترجمة", "grading": "الحكم", "group": "المعنى", "book": "الكتاب", "clickNarrator": "انقر اسم الراوي لفتح ترجمته", "related": "روايات مشابهة" },
-  "person": { "tabaqa": "الطبقة", "rank": "الرتبة", "born": "المولد", "died": "الوفاة", "teachers": "الشيوخ", "students": "التلاميذ", "assessments": "أقوال النقّاد فيه", "narrated": "روى", "hadiths": "حديثًا", "matches": "مطابقات في مصادر أخرى", "network": "شبكة الرواية", "bio": "الترجمة" },
+  "person": { "tabaqa": "الطبقة", "rank": "الرتبة", "born": "المولد", "died": "الوفاة", "teachers": "الشيوخ", "students": "التلاميذ", "assessments": "أقوال النقّاد فيه", "narrated": "روى", "hadiths": "حديثًا", "matches": "مطابقات في مصادر أخرى", "network": "شبكة الرواية", "bio": "الترجمة", "places": "الأماكن" },
   "graph": { "madar": "مدار الحديث", "routesThrough": "طريقًا", "coverage": "تغطية", "mergedDag": "الإسناد المندمج", "legend": "الرتبة: ثقة / صدوق / ضعيف / صحابي" },
   "map": { "title": "خريطة انتقال العلم", "hint": "انقر المدينة لعرض من ولد أو أقام أو توفي فيها" },
   "timeline": { "title": "الخط الزمني للرواة", "filter": "من سنة {s} إلى {e} هـ" },

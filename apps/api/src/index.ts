@@ -455,27 +455,45 @@ api.get("/api/v1/persons/:id/network", async (req, reply) => {
   return { nodes, edges };
 });
 
-/** Shortest documented path between two scholars (BFS, depth ≤ 6). */
+/** Shortest transmission path between two narrators — leveled BFS over
+ *  resolved person_relationships edges (one indexed query per depth). */
 api.get("/api/v1/graph/paths", async (req, reply) => {
   const q = req.query as Record<string, string>;
   const from = Number(q.from), to = Number(q.to);
   if (!from || !to) return badRequest("BAD_PARAMS", "from & to required");
-  const rows = await sql`
-    WITH RECURSIVE bfs AS (
-      SELECT m.person_id AS cur, m2.person_id AS nxt, 1 AS depth,
-             ARRAY[m.person_id, m2.person_id] AS path
-      FROM isnad_mentions m
-      JOIN isnad_mentions m2 ON m2.route_id = m.route_id AND m2.pos = m.pos - 1
-      WHERE m.person_id = ${from}
+
+  // undirected adjacency: narrated_from / studied_under in either direction
+  const parents = new Map<number, number>([[from, -1]]);
+  let frontier = [from];
+  let found = false;
+  for (let depth = 0; depth < 6 && !found && frontier.length; depth++) {
+    const rows = await sql`
+      SELECT subject_id AS a, object_id AS b FROM person_relationships
+      WHERE predicate IN ('narrated_from','studied_under')
+        AND subject_id IN ${sql(frontier)}
       UNION ALL
-      SELECT b.nxt, m2.person_id, b.depth + 1, b.path || m2.person_id
-      FROM bfs b
-      JOIN isnad_mentions m ON m.person_id = b.nxt
-      JOIN isnad_mentions m2 ON m2.route_id = m.route_id AND m2.pos = m.pos - 1
-      WHERE b.depth < 6 AND NOT m2.person_id = ANY(b.path)
-    )
-    SELECT DISTINCT path FROM bfs WHERE nxt = ${to} LIMIT 5`;
-  const paths = rows.map((r) => r.path);
+      SELECT object_id AS a, subject_id AS b FROM person_relationships
+      WHERE predicate IN ('narrated_from','studied_under')
+        AND object_id IN ${sql(frontier)}`;
+    const next: number[] = [];
+    for (const r of rows) {
+      const b = Number(r.b);
+      if (parents.has(b)) continue;
+      parents.set(b, Number(r.a));
+      if (b === to) { found = true; break; }
+      next.push(b);
+    }
+    frontier = next;
+  }
+  const paths: number[][] = [];
+  if (found) {
+    const p: number[] = [];
+    for (let cur: number | undefined = to;
+         cur !== undefined && cur !== -1;
+         cur = parents.get(cur))
+      p.unshift(cur);
+    paths.push(p);
+  }
   const ids = [...new Set(paths.flat())];
   const people = ids.length
     ? await sql`SELECT id, display_name_ar, display_name_en, tabaqa

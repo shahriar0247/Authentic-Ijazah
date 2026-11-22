@@ -754,6 +754,32 @@ def stage_sanadset(cur) -> None:
     log(f"person_relationships(sanadset): {n:,} resolved edges")
 
 
+def stage_kg_edges(cur) -> None:
+    """Derive (student, narrated_from, teacher) edges for KG narrators from
+    isnad_mentions adjacency — enables BFS/shortest-path over rawi ids."""
+    cur.execute("""DELETE FROM person_relationships
+                   WHERE predicate='narrated_from' AND subject_id < %s
+                     AND object_id < %s""", (NS_MS, NS_MS))
+    cur.execute("DROP TABLE IF EXISTS _kg_edges")
+    cur.execute("""CREATE TEMP TABLE _kg_edges AS
+                   SELECT m.person_id AS student, m2.person_id AS teacher,
+                          count(*) AS w
+                   FROM isnad_mentions m
+                   JOIN isnad_mentions m2
+                     ON m2.route_id = m.route_id AND m2.pos = m.pos + 1
+                   WHERE m.person_id IS NOT NULL AND m2.person_id IS NOT NULL
+                     AND m.person_id < %s AND m2.person_id < %s
+                   GROUP BY 1, 2""", (NS_MS, NS_MS))
+    log(f"adjacency aggregated: {cur.rowcount:,} pairs")
+    pairs = list(cur.execute("SELECT * FROM _kg_edges"))
+    n = copy_rows(cur, "person_relationships",
+        ["subject_id", "predicate", "object_id", "weight", "status",
+         "provenance"],
+        ((r[0], "narrated_from", r[1], r[2], "inferred",
+          json.dumps({"src": "hadith-kg"})) for r in pairs))
+    log(f"kg edges (chain adjacency): {n:,}")
+
+
 def stage_translations(cur) -> None:
     sid = src_id(cur, "hadith-json")
     cur.execute("DELETE FROM hadith_translations WHERE source_id=%s", (sid,))
@@ -1096,12 +1122,14 @@ STAGES = {
     "translations": stage_translations,
     "kg_geo": stage_kg_geo,
     "appdb": stage_appdb,
+    "kg_edges": stage_kg_edges,
     "positions": stage_positions,
     "embeddings": stage_embeddings,
     "finalize": stage_finalize,
 }
 ORDER = ["sources", "kg", "muslimscholars", "hawramani", "links",
-         "sanadset", "translations", "kg_geo", "appdb", "positions",
+         "sanadset", "translations", "kg_geo", "appdb", "kg_edges",
+         "positions",
          "embeddings", "finalize"]
 
 
