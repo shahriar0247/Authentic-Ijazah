@@ -13,6 +13,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import ELK from "elkjs/lib/elk.bundled.js";
 import { useRouter } from "next/navigation";
+import { nameEn } from "@/lib/en";
 
 const elk = new ELK();
 
@@ -88,7 +89,7 @@ async function layout(gn: GNode[], ge: GEdge[], dir: "UP" | "RIGHT", locale?: st
     nodes: gn.map((n) => ({
       id: String(n.id),
       position: pos.get(String(n.id)) ?? { x: 0, y: 0 },
-      data: { label: (locale === "en" ? n.display_name_en ?? n.display_name_ar : n.display_name_ar ?? n.display_name_en) ?? `#${n.id}`, node: n },
+      data: { label: (locale === "en" ? nameEn(n) : n.display_name_ar ?? n.display_name_en) ?? `#${n.id}`, node: n },
       style: {
         background: nodeColor(n),
         border: `1.5px solid ${

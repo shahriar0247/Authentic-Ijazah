@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { nameEn } from "@/lib/en";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8077";
 
 interface PersonLite { id: number; display_name_ar?: string | null; display_name_en?: string | null }
 
 const pName = (p: PersonLite | undefined, locale: string) =>
-  locale === "en" ? (p?.display_name_en ?? p?.display_name_ar) : (p?.display_name_ar ?? p?.display_name_en);
+  locale === "en" ? nameEn(p) : (p?.display_name_ar ?? p?.display_name_en);
 
 export function PathFinder({ locale }: { locale: string }) {
   const [sel, setSel] = useState<{ a: PersonLite | null; b: PersonLite | null }>({ a: null, b: null });

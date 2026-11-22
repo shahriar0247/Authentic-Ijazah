@@ -35,7 +35,7 @@ const GRADE_MAP: [RegExp, string][] = [
 export function gradeEn(hukm: string | null | undefined): string | null {
   if (!hukm) return null;
   for (const [re, en] of GRADE_MAP) if (re.test(hukm)) return en;
-  return hukm;
+  return transliterateAr(hukm);
 }
 
 const WORK_EN: Record<string, string> = {
@@ -518,12 +518,170 @@ export function arDigits(s: string): string {
 export function workEn(title: string | null | undefined): string {
   if (!title) return "";
   const key = title.trim().replace(/\s+/g, " ");
-  return WORK_EN[key] ?? WORK_EN[title] ?? patternWorkEn(key) ?? title;
+  return (
+    WORK_EN[key] ?? WORK_EN[title] ?? patternWorkEn(key) ?? transliterateAr(key)
+  );
+}
+
+// ---- Arabic → Latin transliteration fallback -------------------------------
+// Word-level map for the most common name components; anything else falls
+// through to a deterministic char transliterator so English-locale users
+// never see an unreadable name.
+
+const NAME_WORD: Record<string, string> = {
+  محمد: "Muhammad", أحمد: "Ahmad", احمد: "Ahmad", علي: "'Ali", على: "'Ali",
+  الحسن: "al-Hasan", الحسين: "al-Husayn", حسن: "Hasan", حسين: "Husayn",
+  عمر: "'Umar", عثمان: "'Uthman", بن: "ibn", ابن: "ibn", بنت: "bint",
+  أبو: "Abu", ابو: "Abu", أم: "Umm", ام: "Umm", عبد: "'Abd",
+  الله: "Allah", الدين: "al-Din", الرحمن: "al-Rahman", الرحيم: "al-Rahim",
+  إبراهيم: "Ibrahim", ابراهيم: "Ibrahim", إسماعيل: "Isma'il", اسماعيل: "Isma'il",
+  إسحاق: "Ishaq", اسحاق: "Ishaq", إسماعل: "Isma'il",
+  يعقوب: "Ya'qub", يوسف: "Yusuf", موسى: "Musa", عيسى: "'Isa", داود: "Dawud",
+  سليمان: "Sulayman", سعيد: "Sa'id", سعد: "Sa'd", سفيان: "Sufyan",
+  خالد: "Khalid", حمزة: "Hamza", بكر: "Bakr", جعفر: "Ja'far", زيد: "Zayd",
+  ثابت: "Thabit", يحيى: "Yahya", أنس: "Anas", انس: "Anas", صالح: "Salih",
+  سليم: "Salim", شعبة: "Shu'ba", عاصم: "'Asim", وكيع: "Waki'",
+  هشام: "Hisham", هارون: "Harun", طلحة: "Talha",
+  الزبير: "al-Zubayr", زبير: "Zubayr", العباس: "al-'Abbas", عباس: "'Abbas",
+  فاطمة: "Fatima", عائشة: "'A'isha", خديجة: "Khadija", مريم: "Maryam",
+  أيوب: "Ayyub", أيمن: "Ayman", يزيد: "Yazid", عمرو: "'Amr",
+  الأنصاري: "al-Ansari", القرشي: "al-Qurashi", المدني: "al-Madani",
+  المكي: "al-Makki", البصري: "al-Basri", الكوفي: "al-Kufi",
+  التميمي: "al-Tamimi", الهمداني: "al-Hamdani", الأزدي: "al-Azdi",
+  العنبري: "al-'Anbari", الفزاري: "al-Fazari", الليثي: "al-Laythi",
+  العدوي: "al-'Adawi", الأسدي: "al-Asadi", الطائي: "al-Ta'i",
+  الهاشمي: "al-Hashimi", العلوي: "al-'Alawi", العمري: "al-'Umari",
+  العبدي: "al-'Abdi", الزهري: "al-Zuhri", الجعفي: "al-Ja'fi",
+  الحنفي: "al-Hanafi", الشيباني: "al-Shaybani", الغفاري: "al-Ghifari",
+  السلمي: "al-Sulami", الصديق: "al-Siddiq", الفاروق: "al-Faruq",
+  التيمي: "al-Taymi", النجار: "al-Najjar", الخزرجي: "al-Khazraji",
+  الأوسي: "al-Awsi", الغنوي: "al-Ghanawi", اليامي: "al-Yami",
+  الشافعي: "al-Shafi'i", الحنبلي: "al-Hanbali", المالكي: "al-Maliki",
+  الواعظ: "al-Wa'iz", القاضي: "al-Qadi", الحافظ: "al-Hafiz",
+  الثقة: "al-Thiqa", الإمام: "al-Imam", شيخ: "Shaykh", الشيخ: "al-Shaykh",
+  راوي: "rawi", عن: "'an", رواية: "riwayat", وقيل: "wa-qila",
+  ثقة: "thiqa", صدوق: "saduq", ضعيف: "da'if", متروك: "matruk",
+  كذاب: "kadhdhab", مجهول: "majhul",
+};
+
+const HONORIFIC: [RegExp, string][] = [
+  [/صلى الله عليه وسلم|صلى الله عليه وآله وسلم/g, "ﷺ"],
+  [/عليه السلام/g, "(AS)"],
+  [/رضي الله عنه|رضي الله عنها|رضى الله عنه|رضى الله عنها/g, "(RA)"],
+  [/رحمه الله|رحمه الله تعالى/g, "(RH)"],
+];
+
+const CONS_LAT: Record<string, string> = {
+  ب: "b", ت: "t", ث: "th", ج: "j", ح: "h", خ: "kh",
+  د: "d", ذ: "dh", ر: "r", ز: "z", س: "s", ش: "sh",
+  ص: "s", ض: "d", ط: "t", ظ: "z", ع: "'", غ: "gh",
+  ف: "f", ق: "q", ك: "k", ل: "l", م: "m", ن: "n",
+  ه: "h",
+};
+
+// Explicit short vowels (when present) — override the default "a".
+const VOWEL: Record<string, string> = {
+  "َ": "a", "ُ": "u", "ِ": "i", "ً": "an", "ٌ": "un", "ٍ": "in", "ٰ": "a",
+};
+const SKIP_MARK = new Set(["ّ", "ْ", "ـ"]);
+
+function translitWord(w: string): string {
+  if (NAME_WORD[w]) return NAME_WORD[w];
+  // الـ definite article → al-
+  if (w.length > 2 && w.startsWith("ال")) {
+    return "al-" + translitWord(w.slice(2));
+  }
+  const chars = [...w];
+  let out = "";
+  let i = 0;
+  while (i < chars.length) {
+    const c = chars[i];
+    const next = chars[i + 1];
+
+    // Initial-position hamza/alif variants behave like plain alif.
+    if (i === 0 && "اأإآٱ".includes(c)) {
+      out += next && VOWEL[next] !== undefined ? "" : "a";
+      i++;
+      continue;
+    }
+    if (c === "ؤ" || c === "ئ" || c === "ء") { out += "'"; i++; continue; }
+    if (c === "ة" || c === "ى") { out += "a"; i++; continue; }
+    if (VOWEL[c] !== undefined) { out += VOWEL[c]; i++; continue; }
+    if (SKIP_MARK.has(c)) { i++; continue; }
+
+    if (c === "و" || c === "ي") {
+      // Onset (word start or after a vowel): consonant + vowel; trailing ا is
+      // part of the same syllable and gets consumed.
+      if (i === 0 || out.endsWith("a") || out.endsWith("i") || out.endsWith("u")) {
+        out += c === "و" ? "wa" : "ya";
+        i += next === "ا" ? 2 : 1;
+        continue;
+      }
+      // Coda of the preceding consonant: و→u, ي→i (normally consumed by the
+      // consonant branch; reaching here means a hamza/vowel preceded it).
+      out += c === "و" ? "u" : "i";
+      i += next === "ا" ? 2 : 1;
+      continue;
+    }
+
+    // Bare alif (and hamza variants) mid-word: long vowel "a".
+    if ("اأإآٱ".includes(c)) { out += "a"; i++; continue; }
+
+    const cons = CONS_LAT[c];
+    if (cons !== undefined) {
+      // Peek: explicit haraka wins, then long vowels, else default "a".
+      if (next !== undefined && VOWEL[next] !== undefined) {
+        out += cons + VOWEL[next];
+        i += 2;
+        continue;
+      }
+      if (next === "و") { out += cons + "u"; i += 2; continue; }
+      if (next === "ي") { out += cons + "i"; i += 2; continue; }
+      if (next === "ا" || next === "ى" || next === "ة") {
+        out += cons + "a";
+        i += 2;
+        continue;
+      }
+      // Default short vowel "a" — but not on the final consonant of a word.
+      out += i === chars.length - 1 ? cons : cons + "a";
+      i++;
+      continue;
+    }
+
+    // Non-Arabic chars (digits, punctuation, latin) pass through.
+    out += c;
+    i++;
+  }
+  return out;
+}
+
+/** Deterministic Arabic→Latin transliteration (last-resort readability). */
+export function transliterateAr(s: string | null | undefined): string {
+  if (!s) return "";
+  let t = s.trim();
+  for (const [re, en] of HONORIFIC) t = t.replace(re, en);
+  return t
+    .split(/\s+/)
+    .map(translitWord)
+    .join(" ")
+    .replace(/\(\s*\(/g, "(")
+    .replace(/\)\s*\)/g, ")")
+    // Capitalize first letter after word boundaries (space, paren, hyphen);
+    // a leading ' (ayn) keeps it — "'abd" → "'Abd", but "sa'id" stays.
+    .replace(/(^|[\s(\[-])'?([a-z])/g, (_, p, c) => p + c.toUpperCase())
+    // al- article stays lowercase, hyphenated part gets its capital back
+    .replace(/\bAl-/g, "al-")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 export function nameEn(p: { display_name_en?: string | null; display_name_ar?: string | null; name_en?: string | null; name_ar?: string | null } | null | undefined): string {
   if (!p) return "";
-  return p.display_name_en ?? p.name_en ?? p.display_name_ar ?? p.name_ar ?? "";
+  return (
+    (p.display_name_en ?? p.name_en ?? transliterateAr(p.display_name_ar)) ||
+    transliterateAr(p.name_ar) ||
+    ""
+  );
 }
 
 /** Person/work label with optional years, e.g. "Al-Bukhari (d. 256)" */

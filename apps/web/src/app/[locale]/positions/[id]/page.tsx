@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { api } from "@/lib/api";
+import { nameEn } from "@/lib/en";
 
 export const dynamic = "force-dynamic";
 
@@ -48,7 +49,7 @@ export default async function PositionPage({
               <div className="flex flex-wrap items-center gap-2">
                 <Link href={`/${locale}/persons/${a.person_id}`}
                   className="font-medium text-madinah hover:underline">
-                  {a.display_name_ar ?? a.display_name_en}
+                  {locale === "en" ? nameEn(a) : a.display_name_ar ?? a.display_name_en}
                 </Link>
                 {a.tabaqa && <span className="badge badge-muted">{a.tabaqa}</span>}
                 <span className={`badge ${STANCE_BADGE[a.stance] ?? "badge-muted"}`}>
