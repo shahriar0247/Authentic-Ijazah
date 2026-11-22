@@ -33,7 +33,7 @@ api.get("/api/v1/stats", async () => {
 
 api.get("/api/v1/search", async (req, reply) => {
   const { q = "", kind = "all" } = req.query as Record<string, string>;
-  const lim = limit(req.query, 20);
+  const lim = limit((req.query as any).limit, 20);
   const cursor = Number((req.query as any).cursor ?? 0) || 0;
   const qn = normalizeArabic(q);
   if (!qn || qn.length < 2) return badRequest("SHORT_QUERY", "query too short");
@@ -68,6 +68,16 @@ api.get("/api/v1/search", async (req, reply) => {
       SELECT id, title_ar, title_en, level, parent_id
       FROM topics
       WHERE title_ar ILIKE ${"%" + q + "%"} OR title_en ILIKE ${"%" + q + "%"}
+      LIMIT ${lim} OFFSET ${cursor}`;
+  }
+  if (kind === "all" || kind === "group") {
+    out.groups = await sql`
+      SELECT id, title_ar, is_qudsi, sahaba_qty, repeat_qty,
+             similarity(coalesce(search_text, title_ar), ${qn}) AS score
+      FROM meaning_groups
+      WHERE search_text % ${qn} OR search_text ILIKE ${"%" + qn + "%"}
+         OR title_ar ILIKE ${"%" + q + "%"}
+      ORDER BY score DESC
       LIMIT ${lim} OFFSET ${cursor}`;
   }
   return out;
@@ -205,7 +215,7 @@ api.get("/api/v1/groups/:id", async (req, reply) => {
 
 api.get("/api/v1/related/hadiths/:id", async (req, reply) => {
   const id = Number((req.params as any).id);
-  const lim = limit(req.query, 12, 30);
+  const lim = limit((req.query as any).limit, 12, 30);
   const a = await sql`SELECT embedding FROM hadith_occurrences WHERE id = ${id}`;
   if (!a.length || a[0].embedding == null)
     return reply.code(404).send(badRequest("NOT_FOUND", "no embedding"));
@@ -223,7 +233,7 @@ api.get("/api/v1/related/hadiths/:id", async (req, reply) => {
  *  needed — uses the group's own vector as anchor). */
 api.get("/api/v1/related/groups/:id", async (req, reply) => {
   const id = Number((req.params as any).id);
-  const lim = limit(req.query, 12, 30);
+  const lim = limit((req.query as any).limit, 12, 30);
   const anchor = await sql`SELECT embedding FROM meaning_groups WHERE id = ${id}`;
   if (!anchor.length || anchor[0].embedding == null)
     return reply.code(404).send(badRequest("NOT_FOUND", "no embedding for group"));
@@ -237,6 +247,35 @@ api.get("/api/v1/related/groups/:id", async (req, reply) => {
 });
 
 // ---------------------------------------------------------------- persons
+
+api.get("/api/v1/scholars", async (req) => {
+  const q = req.query as Record<string, string>;
+  const lim = limit((req.query as any).limit, 40, 100);
+  const cursor = Number(q.cursor ?? 0) || 0;
+  const tabaqa = q.tabaqa ? Number(q.tabaqa) : null;
+  const rank = q.rank ?? null;
+  const critic = q.critic === "1";
+  const companion = q.companion === "1";
+  const search = q.q ? normalizeArabic(q.q) : null;
+
+  return await sql`
+    SELECT p.id, p.display_name_ar, p.display_name_en, p.tabaqa,
+           p.generation_ord, p.rank_ar, p.rank_norm,
+           p.birth_ah_min, p.death_ah_min, p.is_companion, p.is_critic,
+           (SELECT count(*) FROM assessments a WHERE a.target_person_id = p.id)
+             AS assessment_count
+    FROM persons p
+    WHERE p.id < 3000000  -- core curated persons first (hkg+ms)
+      AND (${tabaqa}::int IS NULL OR p.generation_ord = ${tabaqa})
+      AND (${rank}::text IS NULL OR p.rank_norm ILIKE ${"%" + (rank ?? "") + "%"})
+      AND (NOT ${critic} OR p.is_critic)
+      AND (NOT ${companion} OR p.is_companion)
+      AND (${search}::text IS NULL OR p.search_text % ${search}
+           OR p.search_text ILIKE ${"%" + (search ?? "") + "%"})
+    ORDER BY ${search ? sql`similarity(p.search_text, ${search}) DESC NULLS LAST,` : sql``}
+             p.generation_ord NULLS LAST, p.death_ah_min NULLS LAST
+    LIMIT ${lim} OFFSET ${cursor}`;
+});
 
 api.get("/api/v1/persons/:id", async (req, reply) => {
   const id = Number((req.params as any).id);
@@ -289,7 +328,7 @@ api.get("/api/v1/persons/:id", async (req, reply) => {
 
 api.get("/api/v1/persons/:id/hadiths", async (req, reply) => {
   const id = Number((req.params as any).id);
-  const lim = limit(req.query, 30, 100);
+  const lim = limit((req.query as any).limit, 30, 100);
   const cursor = Number((req.query as any).cursor ?? 0) || 0;
   return await sql`
     SELECT DISTINCT h.id, h.hadith_no, h.hukm, w.title_ar AS work,
@@ -329,7 +368,7 @@ api.get("/api/v1/persons/:id/relationships", async (req, reply) => {
 /** Chain-derived teacher→student edges (co-narration), top weighted. */
 api.get("/api/v1/persons/:id/network", async (req, reply) => {
   const id = Number((req.params as any).id);
-  const lim = limit(req.query, 80, 200);
+  const lim = limit((req.query as any).limit, 80, 200);
   const edges = await sql`
     SELECT m2.person_id AS teacher, m.person_id AS student, count(*) AS weight
     FROM isnad_mentions m
@@ -389,7 +428,7 @@ api.get("/api/v1/books/:id", async (req, reply) => {
   const id = Number((req.params as any).id);
   const w = await sql`SELECT * FROM works WHERE id = ${id}`;
   if (!w.length) return reply.code(404).send(badRequest("NOT_FOUND", "work not found"));
-  const lim = limit(req.query, 30, 100);
+  const lim = limit((req.query as any).limit, 30, 100);
   const cursor = Number((req.query as any).cursor ?? 0) || 0;
   const hadiths = await sql`
     SELECT id, hadith_no, type, hukm, left(text_ar, 240) AS snippet
@@ -442,7 +481,7 @@ api.get("/api/v1/places/:id", async (req, reply) => {
 api.get("/api/v1/timeline", async (req) => {
   const q = req.query as Record<string, string>;
   const start = Number(q.start_ah ?? 1), end = Number(q.end_ah ?? 1500);
-  const lim = limit(req.query, 100, 300);
+  const lim = limit((req.query as any).limit, 100, 300);
   return await sql`
     SELECT id, display_name_ar, display_name_en, tabaqa, generation_ord,
            birth_ah_min, birth_ah_max, death_ah_min, death_ah_max,

@@ -1,0 +1,1 @@
+ALTER TABLE "meaning_groups" ADD COLUMN "search_text" text;

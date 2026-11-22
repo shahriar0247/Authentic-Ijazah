@@ -1,0 +1,1 @@
+ALTER TABLE "external_identifiers" ALTER COLUMN "external_id" SET DATA TYPE varchar(512);

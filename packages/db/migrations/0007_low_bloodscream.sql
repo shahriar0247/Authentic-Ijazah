@@ -1,0 +1,1 @@
+ALTER TABLE "places" ALTER COLUMN "name_ar" DROP NOT NULL;

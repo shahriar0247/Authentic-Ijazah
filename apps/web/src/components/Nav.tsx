@@ -3,7 +3,8 @@ import { getTranslations } from "next-intl/server";
 
 const items = [
   ["nav.search", ""],
-  ["nav.scholars", "/timeline"],
+  ["nav.scholars", "/scholars"],
+  ["nav.timeline", "/timeline"],
   ["nav.map", "/map"],
   ["nav.books", "/books"],
   ["nav.topics", "/topics"],

@@ -36,6 +36,34 @@
       "when": 1795316447139,
       "tag": "0004_rapid_champions",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1795316775835,
+      "tag": "0005_bright_toad",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795316834326,
+      "tag": "0006_cuddly_ben_parker",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795318142671,
+      "tag": "0007_low_bloodscream",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795318185931,
+      "tag": "0008_safe_dakota_north",
+      "breakpoints": true
     }
   ]
 }

@@ -47,6 +47,11 @@ DATABASE_URL = os.environ.get(
 NS_ALEM = 1_000_000
 NS_MS = 2_000_000
 NS_HW = 3_000_000
+NS_ORPHAN = 8_000_000  # orphan mention stubs: 8M + rawi_id (never collides)
+
+
+def orphan_pid(rawi_id: int) -> int:
+    return rawi_id if rawi_id < NS_MS else NS_ORPHAN + rawi_id
 
 SOURCES = [
     ("hadith-kg", "الجامع Hadith Knowledge Graph (emadjumaah)", "dataset",
@@ -71,18 +76,18 @@ COLLECTION_TITLES = {
     "bukhari": ["صحيح البخاري"],
     "muslim": ["صحيح مسلم"],
     "abudawud": ["سنن أبي داود", "سنن أبى داود"],
-    "tirmidhi": ["جامع الترمذي", "الجامع الصحيح للترمذي"],
-    "nasai": ["سنن النسائي", "السنن الكبرى للنسائي", "السنن الصغرى للنسائي"],
-    "ibnmajah": ["سنن ابن ماجه"],
-    "muwatta": ["الموطأ", "موطأ مالك"],
-    "ahmad": ["مسند أحمد"],
-    "darimi": ["سنن الدارمي", "مسند الدارمي"],
+    "tirmidhi": ["جامع الترمذي", "الجامع الصحيح للترمذي", "الترمذي"],
+    "nasai": ["السنن الكبرى للنسائي", "سنن النسائي"],
+    "ibnmajah": ["سنن ابن ماجه", "ابن ماجه"],
+    "malik": ["موطأ مالك رواية يحيى"],
+    "ahmed": ["مسند أحمد"],
+    "darimi": ["سنن الدارمي"],
     "riyad_assalihin": ["رياض الصالحين"],
     "aladab_almufrad": ["الأدب المفرد"],
     "shamail_muhammadiyah": ["الشمائل المحمدية", "شمائل الترمذي"],
     "bulugh_almaram": ["بلوغ المرام"],
     "mishkat_almasabih": ["مشكاة المصابيح", "المصابيح"],
-    "nawawi40": ["الأربعون النووية"],
+    "nawawi40": ["الأربعون النووية", "أربعين"],
     "qudsi40": ["الأربعون القدسية", "الحديث القدسي"],
 }
 
@@ -197,7 +202,8 @@ def stage_kg(cur) -> None:
                    WHERE person_a < %s OR person_b < %s""", (NS_MS, NS_MS))
     cur.execute("DELETE FROM person_place_events WHERE person_id < %s", (NS_MS,))
     cur.execute("DELETE FROM position_attributions WHERE person_id < %s", (NS_MS,))
-    cur.execute("DELETE FROM persons WHERE id < %s", (NS_MS,))
+    cur.execute("DELETE FROM persons WHERE id < %s OR id >= %s",
+                (NS_MS, NS_ORPHAN))
     cur.execute("DELETE FROM hadith_translations WHERE source_id=%s", (sid,))
     cur.execute("DELETE FROM external_identifiers WHERE provider LIKE 'hkg%'")
 
@@ -268,8 +274,8 @@ def stage_kg(cur) -> None:
     if orphans:
         n = copy_rows(cur, "persons",
             ["id", "display_name_ar", "is_stub", "flags"],
-            ((oid, f"راوٍ #{oid}", True,
-              json.dumps({"orphan_mention": True}))
+            ((orphan_pid(oid), f"راوٍ #{oid}", True,
+              json.dumps({"orphan_mention": True, "rawi_id": oid}))
              for oid in sorted(orphans)))
         log(f"persons(orphan stubs): {n:,}")
 
@@ -320,7 +326,8 @@ def stage_kg(cur) -> None:
     # --- annotations: narrator mentions + quran quotes
     n1 = copy_rows(cur, "hadith_annotations",
         ["hadith_id", "kind", "start", "end", "person_id"],
-        ((r["hadith_id"], "narrator", r["start"], r["end"], r["rawi_id"])
+        ((r["hadith_id"], "narrator", r["start"], r["end"],
+          orphan_pid(r["rawi_id"]) if r["rawi_id"] is not None else None)
          for r in kg.execute("SELECT * FROM hadith_rawis")))
     n2 = copy_rows(cur, "hadith_annotations",
         ["hadith_id", "kind", "start", "end", "person_id"],
@@ -338,7 +345,8 @@ def stage_kg(cur) -> None:
     n = copy_rows(cur, "isnad_mentions",
         ["route_id", "pos", "mention_text", "person_id", "identification_status"],
         ((r["sanad_id"], r["pos"], rawi_name.get(r["rawi_id"], "?"),
-          r["rawi_id"], "verified")
+          orphan_pid(r["rawi_id"]) if r["rawi_id"] is not None else None,
+          "verified")
          for r in kg.execute("SELECT * FROM sanad_rawis")))
     log(f"isnad_mentions: {n:,}")
 
@@ -452,16 +460,33 @@ def stage_muslimscholars(cur) -> None:
     n = copy_rows(cur, "person_names", ["person_id", "kind", "value"], names_gen())
     log(f"person_names(ms): {n:,}")
 
-    # studied_under edges (ms namespace)
+    # studied_under edges (ms namespace) — only when both endpoints exist
+    valid = {int(r["id"]) for r in rows}
+    dropped = 0
+
     def rel_gen():
+        nonlocal dropped
+        seen: set[tuple[int, int]] = set()
         for r in rows:
             sid_ms = NS_MS + int(r["id"])
             for t in _parse_ids(r["teacher_ids"]):
-                yield (sid_ms, "studied_under", NS_MS + t, 1, "documented",
-                       None, json.dumps({"src": "muslimscholars"}))
+                obj = NS_MS + t
+                if t not in valid:
+                    dropped += 1
+                    continue
+                if (sid_ms, obj) not in seen and obj != sid_ms:
+                    seen.add((sid_ms, obj))
+                    yield (sid_ms, "studied_under", obj, 1, "documented",
+                           None, json.dumps({"src": "muslimscholars"}))
             for s in _parse_ids(r["student_ids"]):
-                yield (NS_MS + s, "studied_under", sid_ms, 1, "documented",
-                       None, json.dumps({"src": "muslimscholars"}))
+                subj = NS_MS + s
+                if s not in valid:
+                    dropped += 1
+                    continue
+                if (subj, sid_ms) not in seen and subj != sid_ms:
+                    seen.add((subj, sid_ms))
+                    yield (subj, "studied_under", sid_ms, 1, "documented",
+                           None, json.dumps({"src": "muslimscholars"}))
     n = copy_rows(cur, "person_relationships",
         ["subject_id", "predicate", "object_id", "weight", "status",
          "passage_id", "provenance"],
@@ -491,21 +516,35 @@ def stage_muslimscholars(cur) -> None:
         place_ids[key] = pid
         return pid
 
+    # pass 1 — resolve every needed place BEFORE opening the COPY
+    # (no cursor.execute inside a copy generator — it deadlocks)
+    needed: set[str] = set()
+    for r in rows:
+        for v in (r["birth_place"], r["death_place"]):
+            if v:
+                needed.add(v)
+        for stay in (r["places_of_stay"] or "").split("/"):
+            if stay.strip():
+                needed.add(stay)
+    resolved = {name: get_place(name) for name in needed}
+    log(f"ms places resolved: {len(resolved):,} "
+        f"({sum(1 for p in resolved.values() if p)} found)")
+
     def events_gen():
         for r in rows:
             pid = NS_MS + int(r["id"])
             by = int(float(r["birth_year_h"])) if r["birth_year_h"] else None
             dy = int(float(r["death_year_h"])) if r["death_year_h"] else None
             if r["birth_place"]:
-                p = get_place(r["birth_place"])
+                p = resolved.get(r["birth_place"])
                 if p:
                     yield (pid, p, "born", by, by, None)
             if r["death_place"]:
-                p = get_place(r["death_place"])
+                p = resolved.get(r["death_place"])
                 if p:
                     yield (pid, p, "died", dy, dy, None)
             for stay in (r["places_of_stay"] or "").split("/"):
-                p = get_place(stay) if stay.strip() else None
+                p = resolved.get(stay) if stay.strip() else None
                 if p:
                     yield (pid, p, "resided", None, None, None)
     n = copy_rows(cur, "person_place_events",
@@ -524,7 +563,7 @@ def stage_hawramani(cur) -> None:
     import csv
 
     sid = src_id(cur, "hawramani")
-    purge_person_ns(cur, NS_HW, 10_000_000)
+    purge_person_ns(cur, NS_HW, NS_ORPHAN)
 
     rows = list(csv.DictReader(open(ER_DIR / "hawramani_narrators.csv",
                                     encoding="utf-8")))
@@ -676,7 +715,7 @@ def stage_sanadset(cur) -> None:
     n = copy_rows(cur, "person_relationships",
         ["subject_id", "predicate", "object_id", "weight", "status",
          "provenance"],
-        ((stu, "narrated_from", tea, w, "observed",
+        ((stu, "narrated_from", tea, w, "inferred",
           json.dumps({"src": "zenodo-er"}))
          for (stu, tea), w in edges.items()))
     log(f"person_relationships(sanadset): {n:,} resolved edges")
@@ -704,10 +743,25 @@ def stage_translations(cur) -> None:
             continue
         data = json.load(open(json_path, encoding="utf-8"))
         items = data.get("hadiths", []) if isinstance(data, dict) else data
-        # local index: no_inbook -> (id, normalized text)
-        occ = {str(r[0]): (r[1], r[2]) for r in cur.execute(
-            "SELECT hadith_no, id, text_ar FROM hadith_occurrences WHERE work_id=%s",
-            (wid,))}
+        # index occurrences by text signature: numbering schemes differ between
+        # corpora (sunnah.com splits mu'allaq chains), so join on text itself.
+        occ: dict[str, list[tuple[int, str]]] = {}
+        for oid, text in cur.execute(
+            "SELECT id, text_ar FROM hadith_occurrences WHERE work_id=%s", (wid,)):
+            s = signature(text)
+            occ.setdefault(s[:80], []).append((oid, s))
+
+        def lcp_match(cands: list[tuple[int, str]], sig: str) -> int | None:
+            best, bscore = None, 0
+            for oid, s in cands:
+                i = 0
+                for a, b in zip(sig, s):
+                    if a != b:
+                        break
+                    i += 1
+                if i > bscore:
+                    bscore, best = i, oid
+            return best if bscore >= 120 or bscore >= len(sig) // 2 else None
 
         def rows():
             nonlocal matched, total
@@ -716,12 +770,12 @@ def stage_translations(cur) -> None:
                 if not en.get("text"):
                     continue
                 total += 1
-                rec = occ.get(str(h.get("idInBook")))
-                if not rec:
+                sig = signature(h.get("arabic", ""))
+                cands = occ.get(sig[:80])
+                if not cands:
                     continue
-                oid, arabic = rec
-                # verify: normalized arabic must share a substantial prefix
-                if signature(arabic)[:60] != signature(h.get("arabic", ""))[:60]:
+                oid = cands[0][0] if len(cands) == 1 else lcp_match(cands, sig)
+                if not oid:
                     continue
                 matched += 1
                 yield (oid, "en", en.get("narrator"), en["text"], sid, "published")
@@ -781,32 +835,28 @@ def stage_kg_geo(cur) -> None:
     rows = cur.execute(
         """SELECT id, flags->>'iqama' AS iqama, flags->>'death_place' AS dpl
            FROM persons WHERE id < %s AND flags ? 'iqama'""", (NS_MS,))
-    n_ev = 0
-    cache: dict[str, int | None] = {}
+    rows = list(rows)
 
-    def place(name: str) -> int | None:
-        k = normalize(name)
-        if not k or len(k) < 3:
-            return None
-        if k not in cache:
-            cache[k] = _place_for(cur, k, sid)
-        return cache[k]
+    # pass 1 — resolve all place names BEFORE the COPY (no cur.execute inside)
+    needed = {normalize(v) for _, i, d in rows for v in (i, d) if v}
+    needed = {k for k in needed if len(k) >= 3}
+    resolved = {k: _place_for(cur, k, sid) for k in needed}
+    log(f"kg_geo: {len(needed):,} place names, "
+        f"{sum(1 for p in resolved.values() if p)} resolved")
 
     def events():
-        nonlocal n_ev
         for pid, iqama, dpl in rows:
             for kind, val in (("resided", iqama), ("died", dpl)):
                 if not val:
                     continue
-                p = place(val)
+                p = resolved.get(normalize(val))
                 if p:
-                    n_ev += 1
                     yield (pid, p, kind, None, None, None)
 
     n = copy_rows(cur, "person_place_events",
                   ["person_id", "place_id", "kind", "ah_min", "ah_max",
                    "passage_id"], events())
-    log(f"kg_geo: {n:,} events over {len(cache):,} places")
+    log(f"kg_geo: {n:,} events over {len(needed):,} places")
 
 
 def stage_embeddings(cur) -> None:
@@ -842,15 +892,26 @@ def stage_finalize(cur) -> None:
     cur.execute(r"""
         UPDATE assessments SET verdict_class =
           CASE
-            WHEN text_ar ~ 'ليس بثقه|لا يحتج به|ضعيف|متروك|كذاب|كذب|واه|ساقط|منكر الحديث|متهم|لا باس به|لا اس به' THEN 'daif'
-            WHEN text_ar ~ 'صدوق' THEN 'saduq'
-            WHEN text_ar ~ 'ثقه|ثبت|حافظ|امام|متقن|عدل|مقبول' THEN 'thiqa'
-            WHEN text_ar ~ 'مجهول|لا يعرف' THEN 'majhul'
-            WHEN text_ar ~ 'مدلس|تدليس' THEN 'mudallis'
+            WHEN text_ar ~ 'ليس بثقه|لا يحتج به|ضعيف|متروك|كذاب|كذب|واه|ساقط|منكر الحديث|متهم|مجهول|لا يعرف'
+              THEN 'jarh'::verdict_class
+            WHEN text_ar ~ 'ثقه|ثبت|حافظ|امام|متقن|عدل|مقبول|صدوق|لا باس به|لا اس به'
+              THEN 'tadil'::verdict_class
             ELSE NULL
           END
         WHERE verdict_class IS NULL""")
     log(f"assessments classified: {cur.rowcount:,}")
+
+    # normalized search_text for meaning groups (title = taraf nass)
+    try:
+        rows = cur.execute(
+            "SELECT id, title_ar FROM meaning_groups"
+            " WHERE search_text IS NULL AND title_ar IS NOT NULL").fetchall()
+        for gid, title in rows:
+            cur.execute("UPDATE meaning_groups SET search_text=%s WHERE id=%s",
+                        (normalize(title), gid))
+        log(f"meaning_groups.search_text: {len(rows):,}")
+    except psycopg.errors.UndefinedColumn:
+        log("meaning_groups.search_text column missing — run migration")
     cur.execute("ANALYZE")
     stats = {}
     for t in ["persons", "works", "hadith_occurrences", "hadith_translations",

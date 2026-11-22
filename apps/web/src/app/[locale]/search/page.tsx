@@ -19,7 +19,7 @@ export default async function SearchPage({
 
   const res = q.trim()
     ? await api<{
-        hadiths?: any[]; persons?: any[]; topics?: any[];
+        hadiths?: any[]; persons?: any[]; topics?: any[]; groups?: any[];
       }>(`/search?q=${encodeURIComponent(q)}&limit=25`)
     : {};
 
@@ -59,6 +59,24 @@ export default async function SearchPage({
                   {h.hukm && <span className="badge badge-muted shrink-0">{h.hukm}</span>}
                 </div>
                 <p className="hadith-text mt-1 line-clamp-2 text-[15px]">{h.snippet}</p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {!!res.groups?.length && (
+        <section>
+          <h2 className="section-title mb-3">{t("hadith.group")}</h2>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {res.groups.map((g) => (
+              <Link key={g.id} href={`/${locale}/groups/${g.id}`} className="card p-3 hover:shadow-md">
+                <p className="hadith-text line-clamp-2 text-[15px]">{g.title_ar}</p>
+                <div className="mt-1 flex gap-2 text-xs text-stone-500">
+                  {g.is_qudsi && <span className="badge badge-sahabi">قدسي</span>}
+                  <span>{g.sahaba_qty} صحابي</span>
+                  <span>{g.repeat_qty} رواية</span>
+                </div>
               </Link>
             ))}
           </div>

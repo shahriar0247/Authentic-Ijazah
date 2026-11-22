@@ -164,7 +164,7 @@ export const externalIdentifiers = pgTable(
     entityKind: entityKindEnum("entity_kind").notNull(),
     entityId: bigint("entity_id", { mode: "number" }).notNull(),
     provider: varchar("provider", { length: 64 }).notNull(),
-    externalId: varchar("external_id", { length: 128 }).notNull(),
+    externalId: varchar("external_id", { length: 512 }).notNull(),
     confidence: varchar("confidence", { length: 16 }),
   },
   (t) => [
@@ -315,11 +315,12 @@ export const meaningGroups = pgTable("meaning_groups", {
   summaryAr: text("summary_ar"),
   summaryEn: text("summary_en"),
   tarafNass: text("taraf_nass"), // the distinctive wording of this meaning family
-  tarafHukm: varchar("taraf_hukm", { length: 128 }),
+  tarafHukm: text("taraf_hukm"),
   matnNo: integer("matn_no"),
   isQudsi: boolean("is_qudsi").notNull().default(false),
   sahabaQty: integer("sahaba_qty"),
   repeatQty: integer("repeat_qty"),
+  searchText: text("search_text"),
   embedding: vector("embedding", { dimensions: 768 }),
 });
 
@@ -341,7 +342,7 @@ export const hadithOccurrences = pgTable(
     meaningGroupId: bigint("meaning_group_id", { mode: "number" }).references(
       () => meaningGroups.id,
     ),
-    hukm: varchar("hukm", { length: 128 }),
+    hukm: text("hukm"),
     searchText: text("search_text"),
     embedding: vector("embedding", { dimensions: 768 }),
   },
@@ -397,7 +398,7 @@ export const isnadRoutes = pgTable(
       .references(() => hadithOccurrences.id),
     length: smallint("length"),
     maxRank: smallint("max_rank"),
-    hukm: varchar("hukm", { length: 128 }),
+    hukm: text("hukm"),
     sourceId: bigint("source_id", { mode: "number" }).references(() => sources.id),
   },
   (t) => [index("routes_hadith_idx").on(t.hadithId)],
@@ -500,7 +501,7 @@ export const places = pgTable(
   "places",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
-    nameAr: varchar("name_ar", { length: 256 }).notNull(),
+    nameAr: varchar("name_ar", { length: 256 }),
     nameEn: varchar("name_en", { length: 256 }),
     lat: doublePrecision("lat"),
     lng: doublePrecision("lng"),
