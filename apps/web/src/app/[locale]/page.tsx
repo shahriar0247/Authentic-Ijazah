@@ -19,9 +19,9 @@ export default async function Home({
   );
 
   const cards = [
-    ["isnad", `/search`],
-    ["scholars", `/timeline`],
-    ["network", `/timeline`],
+    ["isnad", `/groups/319`],
+    ["scholars", `/scholars`],
+    ["network", `/persons/6796`],
     ["map", `/map`],
     ["positions", `/positions`],
     ["books", `/books`],
