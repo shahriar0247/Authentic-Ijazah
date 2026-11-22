@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { api, rankBadge, fmtAH } from "@/lib/api";
 import { SearchBox } from "@/components/SearchBox";
+import { PathFinder } from "@/components/PathFinder";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +42,7 @@ export default async function ScholarsPage({
     <div className="space-y-5">
       <h1 className="text-2xl font-bold">{t("nav.scholars")}</h1>
       <SearchBox locale={locale} placeholder={t("home.searchPlaceholder")} initial={sp.q ?? ""} />
+      <PathFinder locale={locale} />
       <div className="flex flex-wrap gap-2">
         {filters.map(([f, label]) => {
           const on = active(f);
