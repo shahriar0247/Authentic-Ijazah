@@ -9,7 +9,7 @@ COPY packages/db/package.json packages/db/package.json
 COPY apps/api/package.json apps/api/package.json
 COPY apps/web/package.json apps/web/package.json
 
-RUN pnpm install --frozen-lockfile --filter @ijazah/web...
+RUN pnpm install --frozen-lockfile --filter @ijazah/web... --allow-build esbuild --allow-build sharp --allow-build @tailwindcss/oxide --allow-build unrs-resolver
 
 COPY packages/db packages/db
 COPY apps/web apps/web

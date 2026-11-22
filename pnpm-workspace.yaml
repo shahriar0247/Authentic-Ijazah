@@ -7,4 +7,11 @@ onlyBuiltDependencies:
   - "@tailwindcss/oxide"
   - sharp
   - unrs-resolver
+allowBuilds:
+  esbuild: true
+  "@tailwindcss/oxide": true
+  sharp: true
+  unrs-resolver: true
+  "@parcel/watcher": true
+  "@swc/core": true
 nodeLinker: hoisted
