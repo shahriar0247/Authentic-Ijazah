@@ -203,6 +203,39 @@ api.get("/api/v1/groups/:id", async (req, reply) => {
   };
 });
 
+api.get("/api/v1/related/hadiths/:id", async (req, reply) => {
+  const id = Number((req.params as any).id);
+  const lim = limit(req.query, 12, 30);
+  const a = await sql`SELECT embedding FROM hadith_occurrences WHERE id = ${id}`;
+  if (!a.length || a[0].embedding == null)
+    return reply.code(404).send(badRequest("NOT_FOUND", "no embedding"));
+  return await sql`
+    SELECT h.id, h.hadith_no, h.hukm, w.title_ar AS work,
+           left(h.text_ar, 240) AS snippet,
+           h.embedding <=> ${a[0].embedding}::vector AS distance
+    FROM hadith_occurrences h JOIN works w ON w.id = h.work_id
+    WHERE h.id <> ${id} AND h.embedding IS NOT NULL
+    ORDER BY h.embedding <=> ${a[0].embedding}::vector
+    LIMIT ${lim}`;
+});
+
+/** Semantically nearest meaning groups by stored embedding (no query encoder
+ *  needed — uses the group's own vector as anchor). */
+api.get("/api/v1/related/groups/:id", async (req, reply) => {
+  const id = Number((req.params as any).id);
+  const lim = limit(req.query, 12, 30);
+  const anchor = await sql`SELECT embedding FROM meaning_groups WHERE id = ${id}`;
+  if (!anchor.length || anchor[0].embedding == null)
+    return reply.code(404).send(badRequest("NOT_FOUND", "no embedding for group"));
+  return await sql`
+    SELECT id, title_ar, taraf_nass, is_qudsi,
+           embedding <=> ${anchor[0].embedding}::vector AS distance
+    FROM meaning_groups
+    WHERE id <> ${id} AND embedding IS NOT NULL
+    ORDER BY embedding <=> ${anchor[0].embedding}::vector
+    LIMIT ${lim}`;
+});
+
 // ---------------------------------------------------------------- persons
 
 api.get("/api/v1/persons/:id", async (req, reply) => {

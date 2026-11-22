@@ -343,6 +343,7 @@ export const hadithOccurrences = pgTable(
     ),
     hukm: varchar("hukm", { length: 128 }),
     searchText: text("search_text"),
+    embedding: vector("embedding", { dimensions: 768 }),
   },
   (t) => [
     index("hadith_work_idx").on(t.workId, t.hadithNo),

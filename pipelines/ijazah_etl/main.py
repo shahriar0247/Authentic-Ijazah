@@ -158,6 +158,26 @@ def src_id(cur, slug: str) -> int:
     return cur.execute("SELECT id FROM sources WHERE slug=%s", (slug,)).fetchone()[0]
 
 
+def purge_person_ns(cur, lo: int, hi: int) -> None:
+    """Delete persons in [lo,hi) plus every row that references them."""
+    for tbl, col in [
+        ("person_names", "person_id"),
+        ("person_relationships", "subject_id"),
+        ("person_relationships", "object_id"),
+        ("person_place_events", "person_id"),
+        ("person_matches", "person_a"),
+        ("person_matches", "person_b"),
+        ("assessments", "critic_person_id"),
+        ("assessments", "target_person_id"),
+        ("position_attributions", "person_id"),
+    ]:
+        cur.execute(f"DELETE FROM {tbl} WHERE {col} >= %s AND {col} < %s",
+                    (lo, hi))
+    cur.execute("DELETE FROM external_identifiers WHERE entity_kind='person'"
+                " AND entity_id >= %s AND entity_id < %s", (lo, hi))
+    cur.execute("DELETE FROM persons WHERE id >= %s AND id < %s", (lo, hi))
+
+
 def stage_kg(cur) -> None:
     log("stage kg: reading sqlite…")
     kg = sqlite3.connect(KG_DB)
@@ -170,8 +190,14 @@ def stage_kg(cur) -> None:
         "meaning_groups", "works", "person_names",
     ]:
         cur.execute(f"TRUNCATE {t} CASCADE")
-    cur.execute("DELETE FROM persons WHERE id < %s OR (id >= %s AND id < %s)",
-                (NS_ALEM, NS_ALEM, NS_MS))
+    # dependents referencing persons < NS_MS (hkg + orphan stubs)
+    cur.execute("""DELETE FROM person_relationships
+                   WHERE subject_id < %s OR object_id < %s""", (NS_MS, NS_MS))
+    cur.execute("""DELETE FROM person_matches
+                   WHERE person_a < %s OR person_b < %s""", (NS_MS, NS_MS))
+    cur.execute("DELETE FROM person_place_events WHERE person_id < %s", (NS_MS,))
+    cur.execute("DELETE FROM position_attributions WHERE person_id < %s", (NS_MS,))
+    cur.execute("DELETE FROM persons WHERE id < %s", (NS_MS,))
     cur.execute("DELETE FROM hadith_translations WHERE source_id=%s", (sid,))
     cur.execute("DELETE FROM external_identifiers WHERE provider LIKE 'hkg%'")
 
@@ -366,12 +392,7 @@ def stage_muslimscholars(cur) -> None:
     import csv
 
     sid = src_id(cur, "muslimscholars")
-    cur.execute("DELETE FROM persons WHERE id >= %s AND id < %s", (NS_MS, NS_HW))
-    cur.execute("DELETE FROM external_identifiers WHERE provider='muslimscholars'")
-    cur.execute("""DELETE FROM person_relationships
-                   WHERE provenance->>'src'='muslimscholars'""")
-    cur.execute("DELETE FROM person_place_events WHERE passage_id IS NULL AND person_id >= %s AND person_id < %s",
-                (NS_MS, NS_HW))
+    purge_person_ns(cur, NS_MS, NS_HW)
 
     rows = list(csv.DictReader(open(ER_DIR / "muslimscholars_scholars.csv",
                                     encoding="utf-8")))
@@ -461,9 +482,9 @@ def stage_muslimscholars(cur) -> None:
             return place_ids[key]
         coords = CITY_COORDS.get(key)
         cur.execute(
-            "INSERT INTO places (name_ar, name_en, lat, lng, precision, source_id)"
-            " VALUES (%s,%s,%s,%s,%s,%s) RETURNING id",
-            (name.strip(), name.strip(),
+            "INSERT INTO places (name_en, lat, lng, precision, source_id)"
+            " VALUES (%s,%s,%s,%s,%s) RETURNING id",
+            (name.strip(),
              coords[0] if coords else None, coords[1] if coords else None,
              "exact" if coords else "unknown", sid))
         pid = cur.fetchone()[0]
@@ -503,8 +524,7 @@ def stage_hawramani(cur) -> None:
     import csv
 
     sid = src_id(cur, "hawramani")
-    cur.execute("DELETE FROM persons WHERE id >= %s", (NS_HW,))
-    cur.execute("DELETE FROM external_identifiers WHERE provider='hawramani'")
+    purge_person_ns(cur, NS_HW, 10_000_000)
 
     rows = list(csv.DictReader(open(ER_DIR / "hawramani_narrators.csv",
                                     encoding="utf-8")))
@@ -538,16 +558,6 @@ def stage_hawramani(cur) -> None:
         (("person", NS_HW + i, "hawramani", r["url"])
          for i, r in enumerate(rows, 1)))
     log(f"external_identifiers(hw): {n:,}")
-
-    # hawramani url -> person id lookup for links stage
-    cur.execute("DROP TABLE IF EXISTS _hw_map")
-    cur.execute("DROP TABLE IF EXISTS _hw_map_keep")
-    cur.execute(
-        "CREATE TEMP TABLE _hw_map (url text PRIMARY KEY, person_id bigint)")
-    n = copy_rows(cur, "_hw_map", ["url", "person_id"],
-        ((r["url"], NS_HW + i) for i, r in enumerate(rows, 1)))
-    cur.execute("CREATE TEMP TABLE IF NOT EXISTS _hw_map_keep AS TABLE _hw_map")
-    log(f"_hw_map: {n:,}")
 
 
 def stage_links(cur) -> None:
@@ -584,14 +594,16 @@ def stage_links(cur) -> None:
     log(f"person_matches(name): {n:,}")
 
     # zenodo narrator_links: hw_url -> hw person; ms_id -> ms person
-    hw_map = {u: p for u, p in cur.execute("SELECT url, person_id FROM _hw_map_keep")}
-    ms_map = {eid: pid for pid, eid in cur.execute(
+    hw_map = {u: p for p, u in cur.execute(
+        "SELECT entity_id, external_id FROM external_identifiers"
+        " WHERE provider='hawramani'")}
+    ms_map = {str(eid): pid for pid, eid in cur.execute(
         "SELECT entity_id, external_id FROM external_identifiers WHERE provider='muslimscholars'")}
 
     def zen_gen():
         for r in csv.DictReader(open(ER_DIR / "narrator_links.csv", encoding="utf-8")):
             hw = hw_map.get(r["hw_url"])
-            ms = ms_map.get(int(float(r["ms_id"])) if r["ms_id"] else None)
+            ms = ms_map.get(str(int(float(r["ms_id"]))) if r["ms_id"] else None)
             if hw and ms and hw != ms:
                 a, b = sorted((hw, ms))
                 yield (a, b, "linked_corpus",
@@ -600,6 +612,74 @@ def stage_links(cur) -> None:
         ["person_a", "person_b", "method", "confidence", "status", "source_id"],
         zen_gen())
     log(f"person_matches(zenodo): {n:,}")
+
+
+def stage_sanadset(cur) -> None:
+    """Zenodo ER: resolve Sanadset bare narrator names onto persons and emit
+    transmission edges (narrated_from) + chain-context identity matches."""
+    import csv
+
+    sid = src_id(cur, "zenodo-er")
+    cur.execute("""DELETE FROM person_relationships
+                   WHERE provenance->>'src'='zenodo-er'""")
+    cur.execute("""DELETE FROM person_matches
+                   WHERE method IN ('sanadset_chain','sanadset_link')""")
+
+    hw_map = {u: p for p, u in cur.execute(
+        "SELECT entity_id, external_id FROM external_identifiers"
+        " WHERE provider='hawramani'")}
+    ms_map = {str(u): p for p, u in cur.execute(
+        "SELECT entity_id, external_id FROM external_identifiers"
+        " WHERE provider='muslimscholars'")}
+
+    # --- bare name -> person (prefer direct hw/ms links, then chain_ms)
+    bare2pid: dict[str, int] = {}
+    chain_matches: dict[tuple[int, int], str] = {}
+    for r in csv.DictReader(open(ER_DIR / "sanad_links.csv", encoding="utf-8")):
+        pid = hw_map.get(r["hw_url"]) \
+            or ms_map.get(str(int(float(r["ms_id"]))) if r["ms_id"] else None)
+        chain_ms = (str(int(float(r["chain_ms_id"])))
+                    if r["chain_ms_id"] else None)
+        chain_pid = ms_map.get(chain_ms) if chain_ms else None
+        if pid is None and chain_pid is not None:
+            pid = chain_pid
+        if pid:
+            bare2pid[normalize(r["bare"])] = pid
+        # hw <-> chain_ms identity pairs
+        if hw_map.get(r["hw_url"]) and chain_pid and hw_map[r["hw_url"]] != chain_pid:
+            a, b = sorted((hw_map[r["hw_url"]], chain_pid))
+            chain_matches.setdefault(
+                (a, b), (r["chain_confidence"] or "medium").lower())
+    log(f"sanadset: {len(bare2pid):,} bare names resolved "
+        f"(of {185_217:,}), {len(chain_matches):,} chain-context matches")
+
+    n = copy_rows(cur, "person_matches",
+        ["person_a", "person_b", "method", "confidence", "status", "source_id"],
+        ((a, b, "sanadset_chain", conf, "in_review", sid)
+         for (a, b), conf in chain_matches.items()))
+    log(f"person_matches(sanadset_chain): {n:,}")
+
+    # --- transmission edges
+    edges: dict[tuple[int, int], int] = {}
+    for r in csv.DictReader(open(ER_DIR / "narrator_edges.csv", encoding="utf-8")):
+        stu = bare2pid.get(normalize(r["bare"]))
+        tea = bare2pid.get(normalize(r["teacher"]))
+        if not stu or not tea or stu == tea:
+            continue
+        key = (stu, tea)
+        try:
+            w = int(float(r["weight"] or 1))
+        except ValueError:
+            w = 1
+        edges[key] = edges.get(key, 0) + w
+
+    n = copy_rows(cur, "person_relationships",
+        ["subject_id", "predicate", "object_id", "weight", "status",
+         "provenance"],
+        ((stu, "narrated_from", tea, w, "observed",
+          json.dumps({"src": "zenodo-er"}))
+         for (stu, tea), w in edges.items()))
+    log(f"person_relationships(sanadset): {n:,} resolved edges")
 
 
 def stage_translations(cur) -> None:
@@ -651,7 +731,126 @@ def stage_translations(cur) -> None:
     log(f"translations: {matched:,}/{total:,} verified joins")
 
 
+AR_CITY: dict[str, str] = {
+    "مكه": "mecca", "المدينه": "medina", "بغداد": "baghdad",
+    "الكوفه": "kufa", "البصره": "basra", "دمشق": "damascus",
+    "مصر": "cairo", "القاهره": "cairo", "بيت المقدس": "jerusalem",
+    "القدس": "jerusalem", "واسط": "wasit", "الري": "rayy",
+    "نيسابور": "nishapur", "مرو": "merv", "بخارا": "bukhara",
+    "سمرقند": "samarkand", "هراة": "herat", "الاسكندريه": "alexandria",
+    "انطاكيه": "antioch", "حران": "harran", "قم": "qom",
+    "اصطخر": None, "اصفهان": "isfahan", "حمص": "homs", "حلب": "aleppo",
+    "الموصل": "mosul", "قرطبه": "cordoba", "طرسوس": "tarsus",
+    "صنعاء": "sanaa", "الطائف": "taif", "النجف": "najaf",
+    "سامراء": "samarra", "بلخ": "balkh", "غزه": "ghazni",
+    "الشام": "sham", "خراسان": "khorasan", "الحجاز": "hijaz",
+    "اليمن": "yemen", "العراق": "iraq", "الاندلس": "andalusia",
+    "القيروان": "qayrawan", "تونس": "tunis", "جرجان": None,
+    "همذان": None, "فارس": None, "شيراز": None, "تستر": None,
+    "سجستان": None, "طبرستان": None, "الجزيره": "jordan",
+}
+
+
+def _place_for(cur, key: str, sid: int) -> int | None:
+    """Find or create a place row for normalized (ar/en) key."""
+    row = cur.execute(
+        "SELECT id FROM places WHERE lower(name_en)=%s OR name_ar=%s LIMIT 1",
+        (key, key)).fetchone()
+    if row:
+        return row[0]
+    en = AR_CITY.get(key)
+    coords = CITY_COORDS.get(en) if en else None
+    cur.execute(
+        "INSERT INTO places (name_ar, name_en, lat, lng, precision, source_id)"
+        " VALUES (%s,%s,%s,%s,%s,%s) RETURNING id",
+        (key if not key.isascii() else None,
+         en if en else (key if key.isascii() else None),
+         coords[0] if coords else None, coords[1] if coords else None,
+         "exact" if coords else "unknown", sid))
+    return cur.fetchone()[0]
+
+
+def stage_kg_geo(cur) -> None:
+    """Derive person_place_events from rawi flags (iqama, death_place) and
+    critic free-text, using the curated gazetteer."""
+    sid = src_id(cur, "hadith-kg")
+    cur.execute("""DELETE FROM person_place_events
+                   WHERE passage_id IS NULL AND person_id < %s""", (NS_MS,))
+    cur.execute("DELETE FROM places WHERE source_id=%s", (sid,))
+
+    rows = cur.execute(
+        """SELECT id, flags->>'iqama' AS iqama, flags->>'death_place' AS dpl
+           FROM persons WHERE id < %s AND flags ? 'iqama'""", (NS_MS,))
+    n_ev = 0
+    cache: dict[str, int | None] = {}
+
+    def place(name: str) -> int | None:
+        k = normalize(name)
+        if not k or len(k) < 3:
+            return None
+        if k not in cache:
+            cache[k] = _place_for(cur, k, sid)
+        return cache[k]
+
+    def events():
+        nonlocal n_ev
+        for pid, iqama, dpl in rows:
+            for kind, val in (("resided", iqama), ("died", dpl)):
+                if not val:
+                    continue
+                p = place(val)
+                if p:
+                    n_ev += 1
+                    yield (pid, p, kind, None, None, None)
+
+    n = copy_rows(cur, "person_place_events",
+                  ["person_id", "place_id", "kind", "ah_min", "ah_max",
+                   "passage_id"], events())
+    log(f"kg_geo: {n:,} events over {len(cache):,} places")
+
+
+def stage_embeddings(cur) -> None:
+    """matn-embedding.db -> hadith_occurrences.embedding.
+    Vectors are 768 int8-quantized values; stored as float (cosine <=> is
+    scale-invariant so dequantization isn't needed for distance)."""
+    f = RAW / "matn-embedding.db"
+    if not f.exists():
+        log("matn-embedding.db missing — skipped")
+        return
+    edb = sqlite3.connect(f)
+    edb.row_factory = sqlite3.Row
+    cur.execute("DROP TABLE IF EXISTS _hadith_emb")
+    cur.execute("CREATE TEMP TABLE _hadith_emb (hid bigint PRIMARY KEY, v text)")
+
+    def rows():
+        for r in edb.execute("SELECT hid, vec FROM matn_embedding"):
+            b = r["vec"]
+            if not b or len(b) != 768:
+                continue
+            q = struct.unpack("<768b", b)
+            yield (r["hid"], "[" + ",".join(str(x) for x in q) + "]")
+    n = copy_rows(cur, "_hadith_emb", ["hid", "v"], rows())
+    edb.close()
+    cur.execute("""UPDATE hadith_occurrences h SET embedding = e.v::vector
+                   FROM _hadith_emb e WHERE e.hid = h.id""")
+    log(f"hadith embeddings: staged {n:,}, set {cur.rowcount:,}")
+
+
 def stage_finalize(cur) -> None:
+    # heuristic verdict classification of jarh wa-taʿdil wording (source text
+    # remains authoritative; this is a search/filter aid only)
+    cur.execute(r"""
+        UPDATE assessments SET verdict_class =
+          CASE
+            WHEN text_ar ~ 'ليس بثقه|لا يحتج به|ضعيف|متروك|كذاب|كذب|واه|ساقط|منكر الحديث|متهم|لا باس به|لا اس به' THEN 'daif'
+            WHEN text_ar ~ 'صدوق' THEN 'saduq'
+            WHEN text_ar ~ 'ثقه|ثبت|حافظ|امام|متقن|عدل|مقبول' THEN 'thiqa'
+            WHEN text_ar ~ 'مجهول|لا يعرف' THEN 'majhul'
+            WHEN text_ar ~ 'مدلس|تدليس' THEN 'mudallis'
+            ELSE NULL
+          END
+        WHERE verdict_class IS NULL""")
+    log(f"assessments classified: {cur.rowcount:,}")
     cur.execute("ANALYZE")
     stats = {}
     for t in ["persons", "works", "hadith_occurrences", "hadith_translations",
@@ -677,11 +876,14 @@ STAGES = {
     "muslimscholars": stage_muslimscholars,
     "hawramani": stage_hawramani,
     "links": stage_links,
+    "sanadset": stage_sanadset,
     "translations": stage_translations,
+    "kg_geo": stage_kg_geo,
+    "embeddings": stage_embeddings,
     "finalize": stage_finalize,
 }
 ORDER = ["sources", "kg", "muslimscholars", "hawramani", "links",
-         "translations", "finalize"]
+         "sanadset", "translations", "kg_geo", "embeddings", "finalize"]
 
 
 def main() -> None:
