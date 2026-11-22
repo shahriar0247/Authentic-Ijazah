@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { setRequestLocale } from "next-intl/server";
+import { setRequestLocale, getTranslations } from "next-intl/server";
 import { api } from "@/lib/api";
+import { gradeEn, workEn } from "@/lib/en";
 
 export const dynamic = "force-dynamic";
 
@@ -14,12 +15,16 @@ export default async function BookPage({
   const { locale, id } = await params;
   const { cursor = "0" } = await searchParams;
   setRequestLocale(locale);
+  const t = await getTranslations({ locale });
   const d = await api<any>(`/books/${id}?cursor=${cursor}&limit=60`);
   const w = d.work;
   return (
     <div className="space-y-5">
       <header className="card p-6">
-        <h1 className="font-quran text-2xl font-bold">{w.title_ar}</h1>
+        <h1 className="font-quran text-2xl font-bold">{locale === "en" ? workEn(w.title_ar) : w.title_ar}</h1>
+        {locale === "en" && workEn(w.title_ar) !== w.title_ar && (
+          <p className="mt-0.5 text-sm text-stone-500" dir="rtl">{w.title_ar}</p>
+        )}
         <p className="mt-1 text-stone-600">{w.author_name_ar}</p>
         <div className="mt-2 flex flex-wrap gap-2 text-xs">
           {w.category && <span className="badge badge-muted">{w.category}</span>}
@@ -27,7 +32,7 @@ export default async function BookPage({
           {w.dar && <span className="badge badge-muted">{w.dar}</span>}
           {w.tabaa && <span className="badge badge-muted">ط {w.tabaa}</span>}
           {w.city && <span className="badge badge-muted">{w.city}</span>}
-          {w.hadith_count && <span className="badge badge-thiqa">{Number(w.hadith_count).toLocaleString(locale)} hadith</span>}
+          {w.hadith_count && <span className="badge badge-thiqa">{Number(w.hadith_count).toLocaleString(locale)} {t("nav.hadith")}</span>}
         </div>
       </header>
       <ul className="space-y-2">
@@ -36,8 +41,8 @@ export default async function BookPage({
             <Link href={`/${locale}/hadith/${h.id}`} className="card block p-3 hover:shadow-md">
               <div className="flex items-center gap-2 text-xs text-stone-500">
                 <span>#{h.hadith_no}</span>
-                {h.hukm && <span className="badge badge-muted">{h.hukm}</span>}
-                {h.type === "qudsi" && <span className="badge badge-sahabi">قدسي</span>}
+                {h.hukm && <span className="badge badge-muted">{locale === "en" ? gradeEn(h.hukm) : h.hukm}</span>}
+                {h.type === "qudsi" && <span className="badge badge-sahabi">{t("group.qudsi")}</span>}
               </div>
               <p className="hadith-text mt-1 line-clamp-2 text-[15px]">{h.snippet}</p>
             </Link>

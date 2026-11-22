@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { api } from "@/lib/api";
 import { GraphCanvas } from "@/components/GraphCanvas";
+import { gradeEn, nameEn, workEn } from "@/lib/en";
 
 export const dynamic = "force-dynamic";
 
@@ -22,9 +23,9 @@ export default async function GroupPage({
         <h1 className="font-quran text-2xl font-bold">{g.title_ar}</h1>
         {g.taraf_nass && <p className="hadith-text mt-3 text-lg">{g.taraf_nass}</p>}
         <div className="mt-3 flex flex-wrap gap-2 text-xs">
-          {g.is_qudsi && <span className="badge badge-sahabi">حديث قدسي</span>}
-          <span className="badge badge-muted">{g.sahaba_qty ?? g.sahabah_qty} صحابي</span>
-          <span className="badge badge-muted">{g.repeat_qty} رواية</span>
+          {g.is_qudsi && <span className="badge badge-sahabi">{t("group.qudsi")}</span>}
+          <span className="badge badge-muted">{g.sahaba_qty ?? g.sahabah_qty} {t("group.sahaba")}</span>
+          <span className="badge badge-muted">{g.repeat_qty} {t("group.narrations")}</span>
           <span className="badge badge-muted">{d.dag?.totalRoutes ?? 0} {t("hadith.routes")}</span>
         </div>
       </header>
@@ -37,7 +38,7 @@ export default async function GroupPage({
               const n = d.dag.nodes.find((x: any) => x.id === m.person_id);
               return (
                 <span key={m.person_id} className="badge badge-thiqa">
-                  {t("graph.madar")}: {n?.display_name_ar ?? m.person_id}
+                  {t("graph.madar")}: {(locale === "en" ? nameEn(n) : n?.display_name_ar) || m.person_id}
                   {" · "}{Math.round(m.coverage * 100)}% {t("graph.coverage")}
                 </span>
               );
@@ -54,9 +55,9 @@ export default async function GroupPage({
           {d.hadiths.map((h: any) => (
             <li key={h.id}>
               <Link href={`/${locale}/hadith/${h.id}`} className="flex items-center gap-2 rounded px-2 py-1 hover:bg-stone-100">
-                <span className="text-stone-500">{h.work}</span>
+                <span className="text-stone-500">{locale === "en" ? workEn(h.work) : h.work}</span>
                 <span>#{h.hadith_no}</span>
-                {h.hukm && <span className="badge badge-muted ms-auto">{h.hukm}</span>}
+                {h.hukm && <span className="badge badge-muted ms-auto">{locale === "en" ? gradeEn(h.hukm) : h.hukm}</span>}
               </Link>
             </li>
           ))}

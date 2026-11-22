@@ -17,9 +17,9 @@ export default async function PlacePage({
   return (
     <div className="space-y-5">
       <header className="card p-6">
-        <h1 className="text-2xl font-bold">{p.name_ar ?? p.name_en}</h1>
+        <h1 className="text-2xl font-bold">{locale === "en" ? (p.name_en ?? p.name_ar) : (p.name_ar ?? p.name_en)}</h1>
         <p className="mt-1 text-stone-500">
-          {p.name_en && p.name_ar ? `${p.name_en} · ` : ""}
+          {p.name_en && p.name_ar ? `${locale === "en" ? p.name_ar : p.name_en} · ` : ""}
           {p.kind} · {p.lat?.toFixed(2)}, {p.lng?.toFixed(2)}
           {p.region ? ` · ${p.region}` : ""}
         </p>
@@ -34,7 +34,7 @@ export default async function PlacePage({
               {rows.map((s: any, i: number) => (
                 <li key={i}>
                   <Link href={`/${locale}/persons/${s.id}`} className="flex items-center gap-2 rounded px-2 py-1 text-sm hover:bg-stone-100">
-                    <span className="truncate font-medium text-madinah">{s.display_name_ar ?? s.display_name_en}</span>
+                    <span className="truncate font-medium text-madinah">{locale === "en" ? (s.display_name_en ?? s.display_name_ar) : (s.display_name_ar ?? s.display_name_en)}</span>
                     <span className="ms-auto shrink-0 text-xs text-stone-500">
                       {fmtAH(s.ah_min, s.ah_max)}
                     </span>

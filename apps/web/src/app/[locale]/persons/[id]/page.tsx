@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { api, rankBadge, fmtAH } from "@/lib/api";
 import { GraphCanvas } from "@/components/GraphCanvas";
+import { gradeEn, nameEn } from "@/lib/en";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,17 @@ const DEVIANCE_AR: Record<string, string> = {
   tadlis: "تدليس",
   ikhtilat: "اختلاط",
   suspect_chronology: "شذوذ زمني في السند",
+};
+
+const DEVIANCE_EN: Record<string, string> = {
+  tashayyu: "Shi'ism (tashayyu')",
+  tashayyu_accused: "Accused of tashayyu'",
+  kadhib: "Accused of lying / fabrication",
+  matruk: "Hadith abandoned (matruk)",
+  bidah: "Accused of innovation (bid'ah)",
+  tadlis: "Tadlis (chain masking)",
+  ikhtilat: "Ikhtilat (late confusion)",
+  suspect_chronology: "Anachronistic chain",
 };
 
 export default async function PersonPage({
@@ -37,26 +49,29 @@ export default async function PersonPage({
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="font-quran text-3xl font-bold">
-              {p.display_name_ar ?? p.display_name_en}
+              {locale === "en" ? nameEn(p) : (p.display_name_ar ?? p.display_name_en)}
             </h1>
-            {p.display_name_en && p.display_name_ar && (
+            {p.display_name_en && p.display_name_ar && locale !== "en" && (
               <p className="mt-1 text-stone-500" dir="ltr">{p.display_name_en}</p>
             )}
+            {locale === "en" && p.display_name_ar && p.display_name_en && (
+              <p className="mt-1 text-stone-500" dir="rtl">{p.display_name_ar}</p>
+            )}
             <div className="mt-3 flex flex-wrap gap-2">
-              {p.is_companion && <span className="badge badge-sahabi">صحابي</span>}
-              {p.is_critic && <span className="badge badge-critic">{t("search.persons")} · critic</span>}
-              {p.rank_ar && <span className={`badge ${rankBadge(p.rank_norm)}`}>{p.rank_ar}</span>}
-              {p.flags?.isBukhari && <span className="badge badge-thiqa">راوية في البخاري</span>}
-              {p.flags?.isMuslim && <span className="badge badge-thiqa">راوية في مسلم</span>}
-              {p.flags?.hasTadlis && <span className="badge badge-daif">تدليس</span>}
-              {p.flags?.hasIkhtilat && <span className="badge badge-daif">اختلاط</span>}
+              {p.is_companion && <span className="badge badge-sahabi">{t("person.companion")}</span>}
+              {p.is_critic && <span className="badge badge-critic">{t("person.critic")}</span>}
+              {p.rank_ar && <span className={`badge ${rankBadge(p.rank_norm)}`}>{locale === "en" ? gradeEn(p.rank_ar) : p.rank_ar}</span>}
+              {p.flags?.isBukhari && <span className="badge badge-thiqa">{t("person.inBukhari")}</span>}
+              {p.flags?.isMuslim && <span className="badge badge-thiqa">{t("person.inMuslim")}</span>}
+              {p.flags?.hasTadlis && <span className="badge badge-daif">{t("person.tadlis")}</span>}
+              {p.flags?.hasIkhtilat && <span className="badge badge-daif">{t("person.ikhtilat")}</span>}
               {p.tabaqa && <span className="badge badge-muted">{p.tabaqa}</span>}
               {p.generation_ord != null && <span className="badge badge-muted">g{p.generation_ord}</span>}
-              {p.flags?.age && <span className="badge badge-muted">{p.flags.age} سنة</span>}
+              {p.flags?.age && <span className="badge badge-muted">{p.flags.age} {t("person.yearsOld")}</span>}
               {p.is_stub && <span className="badge badge-muted">stub</span>}
               {(p.flags?.deviance ?? []).map((tag: string) => (
                 <span key={tag} className="badge badge-deviant">
-                  {DEVIANCE_AR[tag] ?? tag}
+                  {(locale === "en" ? DEVIANCE_EN : DEVIANCE_AR)[tag] ?? tag}
                 </span>
               ))}
             </div>
@@ -81,7 +96,7 @@ export default async function PersonPage({
                 <dd>
                   {d.places.map((pl: any, i: number) => (
                     <span key={i} className="me-2">
-                      {pl.name_ar ?? pl.name_en}
+                      {locale === "en" ? (pl.name_en ?? pl.name_ar) : (pl.name_ar ?? pl.name_en)}
                       <span className="text-xs text-stone-400"> ({pl.kind})</span>
                     </span>
                   ))}
@@ -108,7 +123,7 @@ export default async function PersonPage({
               <li key={a.id} className="rounded-lg bg-stone-50/70 p-3 text-sm">
                 <div className="mb-1 flex items-center gap-2">
                   <Link href={`/${locale}/persons/${a.critic_person_id ?? ""}`} className="font-medium text-madinah hover:underline">
-                    {a.critic}
+                    {locale === "en" ? (a.critic_en ?? a.critic) : a.critic}
                   </Link>
                   {a.verdict_class && <span className={`badge ${rankBadge(a.verdict_class)}`}>{a.verdict_class}</span>}
                 </div>
@@ -128,7 +143,9 @@ export default async function PersonPage({
               <ul className="space-y-1 text-sm">
                 {d.matches.map((m: any, i: number) => {
                   const other = m.person_a === p.id ? m.person_b : m.person_a;
-                  const name = m.person_a === p.id ? m.b_name : m.a_name;
+                  const name = m.person_a === p.id
+                    ? (locale === "en" ? (m.b_name_en ?? m.b_name) : m.b_name)
+                    : (locale === "en" ? (m.a_name_en ?? m.a_name) : m.a_name);
                   return (
                     <li key={i} className="flex items-center gap-2">
                       <Link href={`/${locale}/persons/${other}`} className="text-madinah hover:underline">{name}</Link>
@@ -166,7 +183,7 @@ function RelList({ rels, locale, self }: { rels: any[]; locale: string; self: nu
             {list.slice(0, 80).map((r: any, i: number) => (
               <li key={i} className="flex items-center justify-between gap-2">
                 <Link href={`/${locale}/persons/${r.other_id}`} className="truncate text-madinah hover:underline">
-                  {r.other_name}
+                  {locale === "en" ? (r.other_name_en ?? r.other_name) : r.other_name}
                 </Link>
                 {r.weight > 1 && <span className="badge badge-muted">×{r.weight}</span>}
               </li>

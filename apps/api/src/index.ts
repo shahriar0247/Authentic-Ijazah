@@ -133,7 +133,7 @@ api.get("/api/v1/hadith/:id/chains", async (req, reply) => {
   const mentions = routeIds.length
     ? await sql`
         SELECT m.route_id, m.pos, m.mention_text, m.verb, m.person_id,
-               p.display_name_ar, p.rank_ar, p.rank_norm, p.tabaqa,
+               p.display_name_ar, p.display_name_en, p.rank_ar, p.rank_norm, p.tabaqa,
                p.is_companion, p.is_stub, p.flags
         FROM isnad_mentions m
         LEFT JOIN persons p ON p.id = m.person_id
@@ -366,12 +366,14 @@ api.get("/api/v1/persons/:id", async (req, reply) => {
       sql`SELECT kind, value FROM person_names WHERE person_id = ${id}`,
       sql`SELECT provider, external_id, confidence FROM external_identifiers
           WHERE entity_kind='person' AND entity_id=${id}`,
-      sql`SELECT a.id, a.text_ar, a.verdict_class, c.display_name_ar AS critic
+      sql`SELECT a.id, a.text_ar, a.verdict_class, c.display_name_ar AS critic,
+                 c.display_name_en AS critic_en
           FROM assessments a JOIN persons c ON c.id = a.critic_person_id
           WHERE a.target_person_id = ${id} LIMIT 60`,
       sql`SELECT r.predicate::text AS predicate, r.object_id AS other_id,
                  r.weight, r.status,
-                 o.display_name_ar AS other_name, o.tabaqa AS other_tabaqa
+                 o.display_name_ar AS other_name, o.display_name_en AS other_name_en,
+                 o.tabaqa AS other_tabaqa
           FROM person_relationships r JOIN persons o ON o.id = r.object_id
           WHERE r.subject_id = ${id}
           UNION ALL
@@ -380,7 +382,7 @@ api.get("/api/v1/persons/:id", async (req, reply) => {
                    WHEN 'studied_under' THEN 'taught'
                    ELSE r.predicate::text END,
                  r.subject_id, r.weight, r.status,
-                 o.display_name_ar, o.tabaqa
+                 o.display_name_ar, o.display_name_en, o.tabaqa
           FROM person_relationships r JOIN persons o ON o.id = r.subject_id
           WHERE r.object_id = ${id}
           LIMIT 300`,
@@ -391,7 +393,8 @@ api.get("/api/v1/persons/:id", async (req, reply) => {
           FROM person_place_events e JOIN places pl ON pl.id = e.place_id
           WHERE e.person_id = ${id}`,
       sql`SELECT m.person_a, m.person_b, m.method, m.confidence, m.status,
-                 pa.display_name_ar AS a_name, pb.display_name_ar AS b_name
+                 pa.display_name_ar AS a_name, pa.display_name_en AS a_name_en,
+                 pb.display_name_ar AS b_name, pb.display_name_en AS b_name_en
           FROM person_matches m
           JOIN persons pa ON pa.id = m.person_a
           JOIN persons pb ON pb.id = m.person_b

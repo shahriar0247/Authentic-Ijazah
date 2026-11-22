@@ -15,14 +15,15 @@ export default async function TopicPage({
   return (
     <div className="space-y-5">
       <header className="card p-6">
-        <h1 className="font-quran text-2xl font-bold">{d.topic.title_ar ?? d.topic.title_en}</h1>
-        {d.topic.title_en && d.topic.title_ar && <p className="text-stone-500">{d.topic.title_en}</p>}
+        <h1 className="font-quran text-2xl font-bold">{locale === "en" ? (d.topic.title_en ?? d.topic.title_ar) : (d.topic.title_ar ?? d.topic.title_en)}</h1>
+        {d.topic.title_en && d.topic.title_ar && locale !== "en" && <p className="text-stone-500">{d.topic.title_en}</p>}
+        {d.topic.title_en && d.topic.title_ar && locale === "en" && <p className="text-stone-500">{d.topic.title_ar}</p>}
       </header>
       {!!d.children?.length && (
         <div className="flex flex-wrap gap-2">
           {d.children.map((c: any) => (
             <Link key={c.id} href={`/${locale}/topics/${c.id}`} className="badge badge-muted hover:bg-stone-200">
-              {c.title_ar ?? c.title_en}
+              {locale === "en" ? (c.title_en ?? c.title_ar) : (c.title_ar ?? c.title_en)}
             </Link>
           ))}
         </div>

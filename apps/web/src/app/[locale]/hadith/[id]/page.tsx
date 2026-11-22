@@ -3,6 +3,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { api } from "@/lib/api";
 import { HadithText } from "@/components/HadithText";
 import { GraphCanvas } from "@/components/GraphCanvas";
+import { gradeEn, nameEn, workEn } from "@/lib/en";
 
 export const dynamic = "force-dynamic";
 
@@ -26,18 +27,27 @@ export default async function HadithPage({
         <div className="card p-6">
           <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-stone-500">
             <Link href={`/${locale}/books/${h.work_id}`} className="hover:text-madinah">
-              {h.work_title}
+              {locale === "en" ? workEn(h.work_title) : h.work_title}
             </Link>
-            {h.author_name_ar && <span>· {h.author_name_ar}</span>}
+            {h.author_name_ar && <span>· {locale === "en" ? (h.author_name_en ?? h.author_name_ar) : h.author_name_ar}</span>}
             <span>· #{h.hadith_no}</span>
-            {h.hukm && <span className="badge badge-muted">{h.hukm}</span>}
-            {h.type === "qudsi" && <span className="badge badge-sahabi">قدسي</span>}
+            {h.hukm && <span className="badge badge-muted">{locale === "en" ? gradeEn(h.hukm) : h.hukm}</span>}
+            {h.type === "qudsi" && <span className="badge badge-sahabi">{t("group.qudsi")}</span>}
           </div>
+          {en && locale === "en" && (
+            <div className="mb-4" dir="ltr">
+              <p className="text-[16px] leading-relaxed text-stone-800">{en.text}</p>
+              {en.narrator && <p className="mt-2 text-xs text-stone-500">{en.narrator}</p>}
+            </div>
+          )}
+          {locale === "en" && en && (
+            <h4 className="section-title mb-2">{t("group.arabicMatn")}</h4>
+          )}
           <HadithText text={h.text_ar} annotations={data.annotations ?? []} locale={locale} />
           <p className="mt-3 text-xs text-stone-400">{t("hadith.clickNarrator")}</p>
         </div>
 
-        {en && (
+        {en && locale !== "en" && (
           <div className="card p-6" dir="ltr">
             <h3 className="section-title mb-2">{t("hadith.translation")}</h3>
             <p className="text-[15px] leading-relaxed text-stone-700">{en.text}</p>
@@ -70,7 +80,7 @@ export default async function HadithPage({
               {related.map((r: any) => (
                 <li key={r.id} className="rounded-lg bg-stone-50/70 p-3">
                   <div className="mb-1 flex items-center justify-between gap-2 text-xs text-stone-500">
-                    <Link href={`/${locale}/books/${r.work_id ?? ""}`} className="hover:text-madinah">{r.work}</Link>
+                    <Link href={`/${locale}/books/${r.work_id ?? ""}`} className="hover:text-madinah">{locale === "en" ? workEn(r.work) : r.work}</Link>
                     <span className="badge badge-muted">{Math.round((1 - r.distance) * 100)}%</span>
                   </div>
                   <Link href={`/${locale}/hadith/${r.id}`} className="text-sm leading-relaxed text-stone-700 hover:text-madinah">
@@ -89,8 +99,8 @@ export default async function HadithPage({
             <h3 className="section-title">{t("hadith.group")}</h3>
             <p className="mt-1 text-sm font-medium">{data.group.title_ar}</p>
             <p className="mt-1 text-xs text-stone-500">
-              {data.group.sahabah_qty ?? data.group.sahaba_qty} صحابي ·{" "}
-              {data.group.repeat_qty} رواية
+              {data.group.sahabah_qty ?? data.group.sahaba_qty} {t("group.sahaba")} ·{" "}
+              {data.group.repeat_qty} {t("group.narrations")}
             </p>
             <span className="mt-2 inline-block text-xs text-madinah">
               {t("graph.madar")} →
@@ -119,7 +129,7 @@ async function RoutesList({ routes, id, locale }: { routes: any[]; id: string; l
           <div className="mb-1 flex items-center gap-2 text-xs text-stone-500">
             <span>#{i + 1}</span>
             <span>len {r.length}</span>
-            {r.hukm && <span className="badge badge-muted">{r.hukm}</span>}
+            {r.hukm && <span className="badge badge-muted">{locale === "en" ? gradeEn(r.hukm) : r.hukm}</span>}
           </div>
           <div className="flex flex-wrap items-center gap-1" dir="rtl">
             {r.mentions.map((m: any, j: number) => (
@@ -129,7 +139,7 @@ async function RoutesList({ routes, id, locale }: { routes: any[]; id: string; l
                   className="rounded-md bg-white px-2 py-0.5 text-sm shadow-sm ring-1 ring-stone-200 hover:ring-madinah"
                   title={`${m.rank_ar ?? ""} ${m.tabaqa ?? ""}`}
                 >
-                  {m.display_name_ar ?? m.mention_text}
+                  {(locale === "en" ? nameEn(m) : m.display_name_ar) ?? m.mention_text}
                 </Link>
                 {j < r.mentions.length - 1 && <span className="text-stone-400">◂</span>}
               </span>

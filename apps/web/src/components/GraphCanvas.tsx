@@ -64,7 +64,7 @@ function nodeColor(n: GNode): string {
   return "#ffffff";
 }
 
-async function layout(gn: GNode[], ge: GEdge[], dir: "UP" | "RIGHT") {
+async function layout(gn: GNode[], ge: GEdge[], dir: "UP" | "RIGHT", locale?: string) {
   const graph = {
     id: "root",
     layoutOptions: {
@@ -88,7 +88,7 @@ async function layout(gn: GNode[], ge: GEdge[], dir: "UP" | "RIGHT") {
     nodes: gn.map((n) => ({
       id: String(n.id),
       position: pos.get(String(n.id)) ?? { x: 0, y: 0 },
-      data: { label: n.display_name_ar ?? n.display_name_en ?? `#${n.id}`, node: n },
+      data: { label: (locale === "en" ? n.display_name_en ?? n.display_name_ar : n.display_name_ar ?? n.display_name_en) ?? `#${n.id}`, node: n },
       style: {
         background: nodeColor(n),
         border: `1.5px solid ${
@@ -137,10 +137,10 @@ export function GraphCanvas({
 
   useEffect(() => {
     let live = true;
-    layout(nodes, edges, direction).then((r) => live && setEl(r));
+    layout(nodes, edges, direction, locale).then((r) => live && setEl(r));
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ids, edges.length]);
+  }, [ids, edges.length, locale]);
 
   return (
     <div className="overflow-hidden rounded-xl border border-stone-200 bg-white" style={{ height }}>

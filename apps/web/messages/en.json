@@ -1,24 +1,132 @@
 {
-  "app": { "name": "Authentic Ijazah", "tagline": "Atlas of hadith sciences — chains, narrators, jarh wa ta'dil" },
-  "nav": { "search": "Search", "hadith": "Hadith", "scholars": "Scholars", "network": "Narrator network", "map": "Map", "timeline": "Timeline", "books": "Books", "topics": "Topics", "positions": "Aqidah & fiqh positions" },
+  "app": {
+    "name": "Authentic Ijazah",
+    "tagline": "Atlas of hadith sciences — chains, narrators, jarh wa ta'dil"
+  },
+  "nav": {
+    "search": "Search",
+    "hadith": "Hadith",
+    "scholars": "Scholars",
+    "network": "Narrator network",
+    "map": "Map",
+    "timeline": "Timeline",
+    "books": "Books",
+    "topics": "Topics",
+    "positions": "Aqidah & fiqh positions"
+  },
   "home": {
     "hero": "Search 715K hadith, 577K isnad chains, 50K narrators, 128K critic statements — all linked and sourced.",
     "searchPlaceholder": "Search hadith text or narrators…",
     "features": {
-      "isnad": { "t": "Isnad tree", "d": "Every route of a hadith merged into one DAG with automatic madar detection" },
-      "scholars": { "t": "Narrator dossiers", "d": "Dates, generation, rank, jarh wa ta'dil, teachers and students" },
-      "network": { "t": "Transmission network", "d": "Teacher-student graphs derived from real chains" },
-      "map": { "t": "Transmission map", "d": "How narrations moved between cities across centuries" },
-      "positions": { "t": "Scholarly positions", "d": "Aqidah and fiqh stances with evidence and references" },
-      "books": { "t": "425 collections", "d": "From the Sahihayn to the mother-texts, with takhrij" }
+      "isnad": {
+        "t": "Isnad tree",
+        "d": "Every route of a hadith merged into one DAG with automatic madar detection"
+      },
+      "scholars": {
+        "t": "Narrator dossiers",
+        "d": "Dates, generation, rank, jarh wa ta'dil, teachers and students"
+      },
+      "network": {
+        "t": "Transmission network",
+        "d": "Teacher-student graphs derived from real chains"
+      },
+      "map": {
+        "t": "Transmission map",
+        "d": "How narrations moved between cities across centuries"
+      },
+      "positions": {
+        "t": "Scholarly positions",
+        "d": "Aqidah and fiqh stances with evidence and references"
+      },
+      "books": {
+        "t": "425 collections",
+        "d": "From the Sahihayn to the mother-texts, with takhrij"
+      }
     }
   },
-  "search": { "results": "results", "hadiths": "Hadith", "persons": "Narrators", "topics": "Topics", "empty": "No results — try another phrase" },
-  "hadith": { "matn": "Matn", "isnad": "Isnad", "routes": "Routes", "translation": "Translation", "grading": "Verdict", "group": "Meaning group", "book": "Book", "clickNarrator": "Click a narrator to open their dossier", "related": "Similar narrations" },
-  "person": { "tabaqa": "Generation", "rank": "Rank", "born": "Born", "died": "Died", "teachers": "Teachers", "students": "Students", "assessments": "Critics on this narrator", "narrated": "Narrated", "hadiths": "hadith", "matches": "Matches in other sources", "network": "Transmission network", "bio": "Biography", "places": "Places", "devianceWarning": "Warning: this narrator is accused in the critics' statements or flagged for deviation — narrations from him are not accepted without verification. See the jarh texts below." },
-  "graph": { "madar": "Madar", "routesThrough": "routes", "coverage": "coverage", "mergedDag": "Merged isnad", "legend": "Rank: thiqa / saduq / daif / sahabi" },
-  "map": { "title": "Scholarly transmission map", "hint": "Click a city to see who was born, lived, or died there" },
-  "timeline": { "title": "Narrator timeline", "filter": "AH {s} to {e}" },
-  "positions": { "domain": "Domain", "stance": "Stance", "evidence": "Evidence", "empty": "Editorial positions layer — added through cited review" },
-  "common": { "loading": "Loading…", "error": "Error", "ah": "AH", "ce": "CE", "viewAll": "View all", "back": "Back", "unknown": "Unknown" }
+  "search": {
+    "results": "results",
+    "hadiths": "Hadith",
+    "persons": "Narrators",
+    "topics": "Topics",
+    "empty": "No results — try another phrase"
+  },
+  "hadith": {
+    "matn": "Matn",
+    "isnad": "Isnad",
+    "routes": "Routes",
+    "translation": "Translation",
+    "grading": "Verdict",
+    "group": "Meaning group",
+    "book": "Book",
+    "clickNarrator": "Click a narrator to open their dossier",
+    "related": "Similar narrations"
+  },
+  "person": {
+    "tabaqa": "Generation",
+    "rank": "Rank",
+    "born": "Born",
+    "died": "Died",
+    "teachers": "Teachers",
+    "students": "Students",
+    "assessments": "Critics on this narrator",
+    "narrated": "Narrated",
+    "hadiths": "hadith",
+    "matches": "Matches in other sources",
+    "network": "Transmission network",
+    "bio": "Biography",
+    "places": "Places",
+    "devianceWarning": "Warning: this narrator is accused in the critics' statements or flagged for deviation — narrations from him are not accepted without verification. See the jarh texts below.",
+    "companion": "companion",
+    "critic": "critic",
+    "inBukhari": "Narrator in Bukhari",
+    "inMuslim": "Narrator in Muslim",
+    "tadlis": "Tadlis",
+    "ikhtilat": "Ikhtilat",
+    "yearsOld": "years"
+  },
+  "graph": {
+    "madar": "Madar",
+    "routesThrough": "routes",
+    "coverage": "coverage",
+    "mergedDag": "Merged isnad",
+    "legend": "Rank: thiqa / saduq / daif / sahabi"
+  },
+  "map": {
+    "title": "Scholarly transmission map",
+    "hint": "Click a city to see who was born, lived, or died there"
+  },
+  "timeline": {
+    "title": "Narrator timeline",
+    "filter": "AH {s} to {e}"
+  },
+  "positions": {
+    "domain": "Domain",
+    "stance": "Stance",
+    "evidence": "Evidence",
+    "empty": "Editorial positions layer — added through cited review"
+  },
+  "common": {
+    "loading": "Loading…",
+    "error": "Error",
+    "ah": "AH",
+    "ce": "CE",
+    "viewAll": "View all",
+    "back": "Back",
+    "unknown": "Unknown"
+  },
+  "group": {
+    "sahaba": "companions",
+    "narrations": "narrations",
+    "qudsi": "Qudsi hadith",
+    "readFull": "Read the full hadith",
+    "arabicMatn": "Arabic matn"
+  },
+  "scholars": {
+    "inBoth": "Narrators of both Sahihs",
+    "deviant": "Accused / deviant",
+    "tashayyu": "Tashayyu'",
+    "kadhib": "Accused of lying",
+    "matruk": "Matruk (abandoned)"
+  }
 }

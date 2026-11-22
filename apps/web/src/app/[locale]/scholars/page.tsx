@@ -3,6 +3,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { api, rankBadge, fmtAH } from "@/lib/api";
 import { SearchBox } from "@/components/SearchBox";
 import { PathFinder } from "@/components/PathFinder";
+import { gradeEn, nameEn } from "@/lib/en";
 
 export const dynamic = "force-dynamic";
 
@@ -25,13 +26,13 @@ export default async function ScholarsPage({
   const scholars = await api<any[]>(`/scholars?limit=60&${qs}`);
 
   const filters = [
-    ["companion", "صحابي"], ["critic", "ناقد"],
-    ["sahih=bukhari", "رواة البخاري"], ["sahih=muslim", "رواة مسلم"],
-    ["sahih=both", "رواة الصحيحين"],
-    ["flags=tadlis", "مدلسون"], ["flags=deviant", "متّهمون / منحرفون"],
-    ["flags=tashayyu", "تشيّع"], ["flags=kadhib", "متهمون بالكذب"],
-    ["flags=matruk", "متروكون"],
-    ...RANKS.map((r) => [`rank=${r}`, r] as const),
+    ["companion", t("person.companion")], ["critic", t("person.critic")],
+    ["sahih=bukhari", t("person.inBukhari")], ["sahih=muslim", t("person.inMuslim")],
+    ["sahih=both", t("scholars.inBoth")],
+    ["flags=tadlis", t("person.tadlis")], ["flags=deviant", t("scholars.deviant")],
+    ["flags=tashayyu", t("scholars.tashayyu")], ["flags=kadhib", t("scholars.kadhib")],
+    ["flags=matruk", t("scholars.matruk")],
+    ...RANKS.map((r) => [`rank=${r}`, locale === "en" ? (gradeEn(r) ?? r) : r] as const),
   ];
 
   const active = (f: string) =>
@@ -61,14 +62,14 @@ export default async function ScholarsPage({
         {scholars.map((p) => (
           <Link key={p.id} href={`/${locale}/persons/${p.id}`} className="card flex items-center gap-3 p-3 hover:shadow-md">
             <div className="min-w-0 flex-1">
-              <div className="truncate font-medium">{p.display_name_ar ?? p.display_name_en}</div>
+              <div className="truncate font-medium">{locale === "en" ? nameEn(p) : (p.display_name_ar ?? p.display_name_en)}</div>
               <div className="text-xs text-stone-500">
                 {p.tabaqa} · {fmtAH(p.birth_ah_min, p.death_ah_min) ?? "—"} {t("common.ah")}
                 · {p.assessment_count} {t("person.assessments")}
               </div>
             </div>
-            {p.rank_ar && <span className={`badge shrink-0 ${rankBadge(p.rank_norm)}`}>{p.rank_ar}</span>}
-            {p.is_companion && <span className="badge badge-sahabi shrink-0">صحابي</span>}
+            {p.rank_ar && <span className={`badge shrink-0 ${rankBadge(p.rank_norm)}`}>{locale === "en" ? gradeEn(p.rank_ar) : p.rank_ar}</span>}
+            {p.is_companion && <span className="badge badge-sahabi shrink-0">{t("person.companion")}</span>}
           </Link>
         ))}
       </div>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { api, rankBadge } from "@/lib/api";
+import { gradeEn, nameEn } from "@/lib/en";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +34,7 @@ export default async function TimelinePage({
           const width = Math.max(1.5, Math.min(100 - left, ((d - b) / span) * 100));
           return (
             <Link key={p.id} href={`/${locale}/persons/${p.id}`} className="flex items-center gap-3 px-4 py-2 hover:bg-stone-50">
-              <div className="w-56 shrink-0 truncate text-sm">{p.display_name_ar ?? p.display_name_en}</div>
+              <div className="w-56 shrink-0 truncate text-sm">{locale === "en" ? nameEn(p) : (p.display_name_ar ?? p.display_name_en)}</div>
               <div className="relative h-4 flex-1" dir="ltr">
                 <div
                   className="absolute top-1 h-2 rounded-full bg-madinah/70"
@@ -42,7 +43,7 @@ export default async function TimelinePage({
                 />
               </div>
               <span className="w-20 shrink-0 text-end text-xs text-stone-500">{b}–{d}</span>
-              {p.rank_ar && <span className={`badge shrink-0 ${rankBadge(p.rank_norm)}`}>{p.rank_ar}</span>}
+              {p.rank_ar && <span className={`badge shrink-0 ${rankBadge(p.rank_norm)}`}>{locale === "en" ? gradeEn(p.rank_ar) : p.rank_ar}</span>}
             </Link>
           );
         })}

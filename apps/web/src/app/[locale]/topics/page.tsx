@@ -21,7 +21,7 @@ export default async function TopicsPage({
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {topics.map((tp) => (
           <Link key={tp.id} href={`/${locale}/topics/${tp.id}`} className="card p-4 hover:shadow-md">
-            <div className="font-medium">{tp.title_ar ?? tp.title_en}</div>
+            <div className="font-medium">{locale === "en" ? (tp.title_en ?? tp.title_ar) : (tp.title_ar ?? tp.title_en)}</div>
             <div className="mt-1 text-xs text-stone-500">level {tp.level}</div>
           </Link>
         ))}
