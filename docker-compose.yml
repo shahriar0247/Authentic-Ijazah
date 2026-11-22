@@ -1,0 +1,35 @@
+services:
+  # NOTE: pgvector/pgvector:pg17 ships vector + postgis + pg_trgm + unaccent.
+  # If running under podman: `podman run -d --name ijazah-db -p 5433:5432 \
+  #   -e POSTGRES_USER=ijazah -e POSTGRES_PASSWORD=ijazah -e POSTGRES_DB=ijazah \
+  #   -v ijazah-pgdata:/var/lib/postgresql/data docker.io/pgvector/pgvector:pg17`
+  db:
+    image: pgvector/pgvector:pg17
+    container_name: ijazah-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ijazah
+      POSTGRES_PASSWORD: ijazah
+      POSTGRES_DB: ijazah
+    ports:
+      - "5433:5432"
+    volumes:
+      - ijazah-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ijazah -d ijazah"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Optional services — enable when Phase 4 semantic search / job queues land.
+  # opensearch:
+  #   image: opensearchproject/opensearch:2
+  #   profiles: ["search"]
+  #   ...
+  # redis:
+  #   image: redis:7
+  #   profiles: ["jobs"]
+  #   ...
+
+volumes:
+  ijazah-pgdata:

@@ -1,0 +1,17 @@
+node_modules/
+.next/
+dist/
+*.tsbuildinfo
+.env
+.env.local
+.env.*.local
+data/raw/
+data/*.db
+data/*.zip
+data/*.parquet
+data/*.csv
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
+coverage/

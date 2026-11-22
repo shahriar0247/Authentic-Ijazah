@@ -1,0 +1,24 @@
+{
+  "name": "authentic-ijazah",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Authentic Ijazah — a hadith & scholars knowledge-graph research platform",
+  "type": "module",
+  "packageManager": "pnpm@12.21.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose down",
+    "db:generate": "pnpm --filter @ijazah/db generate",
+    "db:migrate": "pnpm --filter @ijazah/db migrate",
+    "db:studio": "pnpm --filter @ijazah/db studio",
+    "etl": "cd pipelines && uv run python -m ijazah_etl.main",
+    "dev:api": "pnpm --filter @ijazah/api dev",
+    "dev:web": "pnpm --filter @ijazah/web dev",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "build": "pnpm -r build"
+  }
+}

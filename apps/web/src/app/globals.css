@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+@theme {
+  --font-quran: "Amiri Quran", "Amiri", serif;
+  --font-arabic: "IBM Plex Sans Arabic", "Amiri", sans-serif;
+  --color-ink: #0c1410;
+  --color-paper: #f6f1e7;
+  --color-gold: #a67c1a;
+  --color-madinah: #17694a;
+  --color-thiqa: #1a7f4f;
+  --color-saduq: #8a7b2e;
+  --color-daif: #b0432b;
+  --color-sahabi: #7b3fa0;
+}
+
+html { font-family: var(--font-arabic), system-ui, sans-serif; }
+body { @apply bg-paper text-ink antialiased; }
+[dir="rtl"] { font-family: var(--font-arabic), system-ui, sans-serif; }
+
+.hadith-text {
+  font-family: var(--font-quran), "Amiri", serif;
+  line-height: 2.15;
+  font-size: 1.22rem;
+}
+.narrator-link {
+  @apply cursor-pointer rounded px-0.5 underline decoration-gold/60 decoration-2 underline-offset-4 transition-colors hover:bg-gold/15 hover:text-madinah;
+}
+.narrator-link.comp { @apply decoration-purple-400/70; }
+.quran-quote { @apply text-madinah; }
+
+.badge { @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset; }
+.badge-thiqa { @apply bg-emerald-50 text-emerald-800 ring-emerald-600/25; }
+.badge-saduq { @apply bg-amber-50 text-amber-800 ring-amber-600/25; }
+.badge-daif { @apply bg-red-50 text-red-700 ring-red-600/25; }
+.badge-sahabi { @apply bg-purple-50 text-purple-700 ring-purple-600/25; }
+.badge-critic { @apply bg-sky-50 text-sky-700 ring-sky-600/25; }
+.badge-muted { @apply bg-stone-100 text-stone-600 ring-stone-500/20; }
+
+.card { @apply rounded-xl border border-stone-200/80 bg-white/70 shadow-sm backdrop-blur; }
+.section-title { @apply text-sm font-semibold uppercase tracking-wider text-stone-500; }
